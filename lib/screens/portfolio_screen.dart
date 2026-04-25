@@ -25,7 +25,96 @@ class PortfolioScreen extends StatelessWidget {
                           style: TextStyle(color: Colors.white54)),
                     ),
                     const SizedBox(height: 30),
-
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF8E44AD), Color(0xFF3498DB)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.science_outlined,
+                              color: Colors.white, size: 28),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Demo İşlem Üret',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                                SizedBox(height: 2),
+                                Text(
+                                    'Davranışsal profilin için 8 örnek işlem oluştur',
+                                    style: TextStyle(
+                                        color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF8E44AD),
+                            ),
+                            onPressed: () async {
+                              final confirmed = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  backgroundColor: const Color(0xFF1E1E1E),
+                                  title: const Text('Demo İşlem Üret',
+                                      style: TextStyle(color: Colors.white)),
+                                  content: const Text(
+                                    'Mevcut işlem geçmişin silinecek ve 8 demo işlem oluşturulacak. Bakiyen yeniden ₺100.000 olacak. Devam edilsin mi?',
+                                    style: TextStyle(color: Colors.white70),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('İptal'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.tealAccent),
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text('Üret',
+                                          style:
+                                              TextStyle(color: Colors.black)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirmed == true && context.mounted) {
+                                final success = await context
+                                    .read<PortfolioProvider>()
+                                    .generateDemoTrades();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(success
+                                          ? '8 demo işlem oluşturuldu'
+                                          : 'İşlem üretilemedi'),
+                                      backgroundColor:
+                                          success ? Colors.green : Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text('Üret',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ),
                     const Text('Varlıklarım',
                         style: TextStyle(
                             color: Colors.white,
@@ -76,7 +165,6 @@ class PortfolioScreen extends StatelessWidget {
                                   padding: const EdgeInsets.only(bottom: 12.0),
                                   child: _buildAssetCard(
                                     symbol,
-                                    // İŞTE BİZİ KURTARACAK YENİ YAZI BURADA:
                                     '${quantity.toStringAsFixed(0)} Adet • Maliyet: ₺${averageCost.toStringAsFixed(2)}',
                                     totalValue,
                                     cardColor,

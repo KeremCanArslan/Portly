@@ -14,24 +14,46 @@ class NewsScreen extends StatelessWidget {
       body: SafeArea(
         child: RefreshIndicator(
           color: Colors.tealAccent,
-          onRefresh: () => provider.loadNewsData(),
+          onRefresh: () => provider.loadNewsData(force: true),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('AI Haber Analizi',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Expanded(
+                      child: Text('AI Haber Analizi',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                    IconButton(
+                      icon: provider.isNewsLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.tealAccent,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.tealAccent),
+                      onPressed: provider.isNewsLoading
+                          ? null
+                          : () => provider.loadNewsData(force: true),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
                 Text(
                     'Doğal Dil İşleme (NLP) modeli ile piyasa haberlerinin anlık duygu analizi.',
                     style: TextStyle(color: Colors.grey[400], fontSize: 14)),
                 const SizedBox(height: 24),
-                if (provider.isNewsLoading)
+                if (provider.isNewsLoading && provider.newsData.isEmpty)
                   const Center(
                     child: Padding(
                       padding: EdgeInsets.all(32.0),
@@ -44,8 +66,9 @@ class NewsScreen extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.all(32.0),
                       child: Text(
-                          'Haber bulunamadı. Aşağı çekerek tekrar deneyin.',
-                          style: TextStyle(color: Colors.white54)),
+                        'Haber bulunamadı. Yenile butonuna basın.',
+                        style: TextStyle(color: Colors.white54),
+                      ),
                     ),
                   )
                 else
@@ -80,14 +103,13 @@ class NewsScreen extends StatelessWidget {
   }
 
   String _extractSymbolFromTitle(String title) {
-    // Basit sembol çıkarıcı — başlıkta AAPL, TSLA gibi büyük harfli 3-5 karakter
     final match = RegExp(r'\b[A-Z]{3,5}\b').firstMatch(title);
     return match?.group(0) ?? 'NEWS';
   }
 
-  String _formatDate(String iso) {
+  String _formatDate(dynamic iso) {
     try {
-      final date = DateTime.parse(iso);
+      final date = DateTime.parse(iso.toString());
       final diff = DateTime.now().difference(date);
       if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
       if (diff.inHours < 24) return '${diff.inHours} saat önce';

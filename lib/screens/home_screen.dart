@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:portly/providers/portfolio_provider.dart';
+import 'package:portly/screens/stock_detail_screen.dart';
+import 'package:portly/screens/behavior_screen.dart';
+import 'package:portly/providers/auth_provider.dart';
+import 'package:portly/screens/stress_test_screen.dart';
+import 'dart:async';
+import 'package:portly/services/api_service.dart';
+import 'package:portly/screens/chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -8,6 +15,8 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<PortfolioProvider>();
+    final auth = context.watch<AuthProvider>();
+    final displayName = auth.fullName ?? 'Yatırımcı';
     final totalAsset = provider.totalAssetValue;
     final pnl = provider.totalPnl;
     final pnlPct = provider.totalPnlPercent;
@@ -35,8 +44,8 @@ class HomeScreen extends StatelessWidget {
                         Text('Hoş Geldin,',
                             style: TextStyle(
                                 color: Colors.grey[400], fontSize: 14)),
-                        const Text('Standart Kullanıcı',
-                            style: TextStyle(
+                        Text(displayName,
+                            style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold)),
@@ -119,14 +128,35 @@ class HomeScreen extends StatelessWidget {
 
                 // === AI KOÇ KARTI ===
                 _buildAICoachCard(context),
-                const SizedBox(height: 30),
+                const SizedBox(height: 12),
 
-                const Text('Popüler Hisseler',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
+                // === DAVRANIŞSAL PROFİL KARTI ===
+                _buildBehaviorCard(context),
+                const SizedBox(height: 30),
+                const SizedBox(height: 12),
+                _buildStressCard(context),
+
+                // === İzleme Listesi Başlığı + Ekle Butonu ===
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('İzleme Listem',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle,
+                          color: Colors.tealAccent, size: 28),
+                      onPressed: () => _showAddStockDialog(context),
+                    ),
+                  ],
+                ),
+                Text(
+                  '💡 Bir hisseyi silmek için sola kaydır',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+                const SizedBox(height: 12),
 
                 if (provider.isLoading)
                   const Center(
@@ -137,12 +167,15 @@ class HomeScreen extends StatelessWidget {
                     ),
                   )
                 else if (provider.marketData.isEmpty)
-                  const Center(
+                  Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32.0),
-                      child: Text(
-                          'Piyasa verisi alınamadı. Aşağı çekerek deneyin.',
-                          style: TextStyle(color: Colors.white54)),
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        children: [
+                          Text('İzleme listen boş. + butonuyla hisse ekle.',
+                              style: TextStyle(color: Colors.grey[500])),
+                        ],
+                      ),
                     ),
                   )
                 else
@@ -162,7 +195,10 @@ class HomeScreen extends StatelessWidget {
   Widget _buildAICoachCard(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: () => _showCoachSheet(context),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ChatScreen()),
+      ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -215,377 +251,497 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _showCoachSheet(BuildContext mainContext) {
-    final provider = mainContext.read<PortfolioProvider>();
-    provider.loadCoachAdvice();
-
-    showModalBottomSheet(
-      context: mainContext,
-      backgroundColor: const Color(0xFF1E1E1E),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+  Widget _buildBehaviorCard(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BehaviorScreen()),
       ),
-      builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.7,
-          maxChildSize: 0.9,
-          minChildSize: 0.4,
-          expand: false,
-          builder: (_, scrollController) {
-            return Consumer<PortfolioProvider>(
-              builder: (_, prov, __) {
-                return Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE74C3C), Color(0xFFF5A623)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.orangeAccent.withValues(alpha: 0.25),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child:
+                  const Icon(Icons.psychology, color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Yatırımcı Karakterin',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Davranışsal finans önyargılarını keşfet',
+                      style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStressCard(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const StressTestScreen()),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF134E5E), Color(0xFF71B280)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.tealAccent.withValues(alpha: 0.2),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.analytics_outlined,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Stres Testi',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Monte Carlo • 2008 Krizi • COVID Çöküşü',
+                      style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // HİSSE EKLEME DIALOG'U
+  // ==========================================
+  void _showAddStockDialog(BuildContext context) {
+    final controller = TextEditingController();
+    List<Map<String, dynamic>> suggestions = [];
+    bool isSearching = false;
+    Timer? debounceTimer;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (ctx, setState) {
+          // Debounced arama: kullanıcı 300ms boyunca yazmazsa istek at
+          void onQueryChanged(String value) {
+            debounceTimer?.cancel();
+            if (value.trim().isEmpty) {
+              setState(() {
+                suggestions = [];
+                isSearching = false;
+              });
+              return;
+            }
+            setState(() => isSearching = true);
+            debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+              final results = await ApiService().searchStocks(value);
+              if (ctx.mounted) {
+                setState(() {
+                  suggestions = results;
+                  isSearching = false;
+                });
+              }
+            });
+          }
+
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.tealAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.search,
+                      color: Colors.tealAccent, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Text('Hisse Ara',
+                    style: TextStyle(color: Colors.white, fontSize: 18)),
+              ],
+            ),
+            content: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: onQueryChanged,
+                    decoration: InputDecoration(
+                      hintText: 'Şirket adı, sembol... (örn. apple, garanti)',
+                      hintStyle: TextStyle(color: Colors.grey[600]),
+                      prefixIcon: isSearching
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.tealAccent,
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(Icons.auto_awesome,
-                                color: Colors.white, size: 20),
-                          ),
-                          const SizedBox(width: 12),
-                          const Text('Portly AI Koç',
+                            )
+                          : Icon(Icons.search,
+                              color: Colors.grey[500], size: 20),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.white24),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Colors.tealAccent),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  if (controller.text.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.tealAccent.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: Colors.tealAccent.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline,
+                              color: Colors.tealAccent.withValues(alpha: 0.8),
+                              size: 18),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'BIST, NASDAQ, NYSE ve kripto piyasalarında arayabilirsin. Türkçe veya İngilizce yazabilirsin.',
                               style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold)),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.refresh,
-                                color: Colors.white70),
-                            onPressed: prov.isCoachLoading
-                                ? null
-                                : () => prov.loadCoachAdvice(),
+                                  color: Colors.white70, fontSize: 12),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          child: _buildCoachContent(prov),
-                        ),
+                    )
+                  else if (isSearching && suggestions.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Center(
+                        child:
+                            CircularProgressIndicator(color: Colors.tealAccent),
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.1)),
-                        ),
-                        child: Row(
+                    )
+                  else if (!isSearching && suggestions.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Center(
+                        child: Column(
                           children: [
-                            Icon(Icons.info_outline,
-                                color: Colors.grey[400], size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Bu yorum eğitim amaçlıdır, yatırım tavsiyesi değildir.',
-                                style: TextStyle(
-                                    color: Colors.grey[400], fontSize: 11),
-                              ),
+                            Icon(Icons.search_off,
+                                color: Colors.grey[600], size: 32),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Eşleşme bulunamadı',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Farklı bir terim dene veya sembolü doğrudan ekle',
+                              style: TextStyle(
+                                  color: Colors.grey[600], fontSize: 11),
+                              textAlign: TextAlign.center,
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 320),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: suggestions.length,
+                        itemBuilder: (_, i) {
+                          final s = suggestions[i];
+                          final symbol = s['symbol'] as String? ?? '';
+                          final name = s['name'] as String? ?? symbol;
+                          final market = s['market'] as String? ?? '';
 
-  Widget _buildCoachContent(PortfolioProvider prov) {
-    if (prov.isCoachLoading) {
-      return Column(
-        children: [
-          const SizedBox(height: 40),
-          const CircularProgressIndicator(color: Colors.purpleAccent),
-          const SizedBox(height: 20),
-          Text('Llama 3.3 70B portföyünü analiz ediyor...',
-              style: TextStyle(color: Colors.grey[400])),
-        ],
-      );
-    }
+                          Color marketColor;
+                          if (market == 'BIST') {
+                            marketColor = Colors.redAccent;
+                          } else if (market == 'CRYPTO') {
+                            marketColor = Colors.orangeAccent;
+                          } else if (market == 'NASDAQ' || market == 'NYSE') {
+                            marketColor = Colors.blueAccent;
+                          } else if (market == 'ETF') {
+                            marketColor = Colors.purpleAccent;
+                          } else if (market == 'ENDEKS') {
+                            marketColor = Colors.tealAccent;
+                          } else {
+                            marketColor = Colors.grey;
+                          }
 
-    if (prov.coachError != null) {
-      return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
-            const SizedBox(height: 12),
-            Text(prov.coachError!,
-                style: const TextStyle(color: Colors.white70),
-                textAlign: TextAlign.center),
-          ],
-        ),
-      );
-    }
-
-    if (prov.coachAdvice == null) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Text('Tavsiye almak için yenile butonuna bas.',
-            style: TextStyle(color: Colors.white54)),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.purpleAccent.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        prov.coachAdvice!,
-        style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.6),
-      ),
-    );
-  }
-
-  // ==========================================
-  // HİSSE KARTI
-  // ==========================================
-  Widget _buildStockCard(BuildContext context, Map<String, dynamic> data) {
-    final isUp = data['isUp'] as bool;
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () => _showTradeSheet(context, data),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: Colors.white.withValues(alpha: 0.2), width: 1.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: isUp
-                      ? Colors.green.withValues(alpha: 0.15)
-                      : Colors.red.withValues(alpha: 0.15),
-                  child: Icon(
-                      isUp ? Icons.show_chart : Icons.stacked_line_chart,
-                      color: isUp ? Colors.greenAccent : Colors.redAccent),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(data['symbol'],
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                    SizedBox(
-                      width: 180,
-                      child: Text(data['name'],
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              TextStyle(color: Colors.grey[500], fontSize: 14)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text('₺${data['price']}',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold)),
-                Text(data['change'],
-                    style: TextStyle(
-                        color: isUp ? Colors.greenAccent : Colors.redAccent,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ==========================================
-  // ALIM-SATIM PANELİ
-  // ==========================================
-  void _showTradeSheet(
-      BuildContext mainContext, Map<String, dynamic> stockData) {
-    final qtyController = TextEditingController(text: '1');
-    final symbol = stockData['symbol'] as String;
-    final name = stockData['name'] as String;
-    final price = (stockData['rawPrice'] as double?) ??
-        double.tryParse(stockData['price'].toString()) ??
-        0.0;
-
-    final provider = mainContext.read<PortfolioProvider>();
-    final held = provider.heldQuantity(symbol);
-
-    showModalBottomSheet(
-      context: mainContext,
-      backgroundColor: const Color(0xFF1E1E1E),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (sheetContext) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('İşlem Emri',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Text('$symbol — $name',
-                  style: const TextStyle(color: Colors.white70, fontSize: 16)),
-              const SizedBox(height: 8),
-              Text('Fiyat: ₺${price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                      color: Colors.tealAccent,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
-              if (held > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text('Elinde: ${held.toStringAsFixed(0)} lot',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 13)),
-                ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: qtyController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Lot adedi',
-                  labelStyle: const TextStyle(color: Colors.white54),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.white30),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Colors.tealAccent),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon:
-                          const Icon(Icons.shopping_cart, color: Colors.white),
-                      label: const Text('Al',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                      onPressed: () async {
-                        final qty = int.tryParse(qtyController.text) ?? 0;
-                        if (qty <= 0) return;
-                        final result =
-                            await provider.executeBuyOrder(symbol, qty, price);
-                        if (mainContext.mounted) {
-                          Navigator.pop(sheetContext);
-                          ScaffoldMessenger.of(mainContext).showSnackBar(
-                            SnackBar(
-                              content: Text(result.success
-                                  ? '✅ $qty lot $symbol alındı'
-                                  : '❌ ${result.message}'),
-                              backgroundColor:
-                                  result.success ? Colors.green : Colors.red,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: held > 0
-                            ? Colors.greenAccent.shade700
-                            : Colors.grey,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.sell, color: Colors.white),
-                      label: const Text('Sat',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
-                      onPressed: held <= 0
-                          ? null
-                          : () async {
-                              final qty = int.tryParse(qtyController.text) ?? 0;
-                              if (qty <= 0) return;
-                              final result =
-                                  await provider.executeSellOrder(symbol, qty);
-                              if (mainContext.mounted) {
-                                Navigator.pop(sheetContext);
-                                ScaffoldMessenger.of(mainContext).showSnackBar(
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () async {
+                              debounceTimer?.cancel();
+                              Navigator.pop(dialogContext);
+                              final added = await context
+                                  .read<PortfolioProvider>()
+                                  .addToWatchlist(symbol);
+                              if (context.mounted && !added) {
+                                ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(result.success
-                                        ? '✅ $qty lot $symbol satıldı'
-                                        : '❌ ${result.message}'),
-                                    backgroundColor: result.success
-                                        ? Colors.green
-                                        : Colors.red,
+                                    content: Text('$symbol zaten listende'),
+                                    backgroundColor: Colors.orange,
                                   ),
                                 );
                               }
                             },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              margin: const EdgeInsets.only(bottom: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.03),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.05)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          marketColor.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      market,
+                                      style: TextStyle(
+                                        color: marketColor,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(symbol,
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14)),
+                                        Text(name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                color: Colors.grey[400],
+                                                fontSize: 11)),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(Icons.add_circle_outline,
+                                      color: Colors.tealAccent, size: 20),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  debounceTimer?.cancel();
+                  Navigator.pop(dialogContext);
+                },
+                child: const Text('İptal',
+                    style: TextStyle(color: Colors.white54)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ==========================================
+  // HİSSE KARTI (Dismissible + dinamik currency)
+  // ==========================================
+  Widget _buildStockCard(BuildContext context, Map<String, dynamic> data) {
+    final isUp = data['isUp'] as bool;
+    final currency = data['currency'] as String? ?? '₺';
+
+    return Dismissible(
+      key: Key(data['symbol']),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 28),
+      ),
+      onDismissed: (_) {
+        context.read<PortfolioProvider>().removeFromWatchlist(data['symbol']);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${data['symbol']} listeden çıkarıldı'),
+            backgroundColor: Colors.grey[800],
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StockDetailScreen(stockData: data),
+          ),
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: isUp
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : Colors.red.withValues(alpha: 0.15),
+                    child: Icon(
+                        isUp ? Icons.show_chart : Icons.stacked_line_chart,
+                        color: isUp ? Colors.greenAccent : Colors.redAccent),
                   ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(data['symbol'],
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      SizedBox(
+                        width: 180,
+                        child: Text(data['name'],
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: Colors.grey[500], fontSize: 14)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text('$currency${data['price']}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  Text(data['change'],
+                      style: TextStyle(
+                          color: isUp ? Colors.greenAccent : Colors.redAccent,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
