@@ -118,6 +118,44 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+// Beni hatırla checkbox
+                Row(
+                  children: [
+                    Transform.scale(
+                      scale: 0.9,
+                      child: Checkbox(
+                        value: context.watch<AuthProvider>().rememberMe,
+                        onChanged: (val) {
+                          context
+                              .read<AuthProvider>()
+                              .setRememberMe(val ?? true);
+                        },
+                        activeColor: Colors.tealAccent,
+                        checkColor: Colors.black,
+                        side: BorderSide(color: Colors.grey[600]!, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        final auth = context.read<AuthProvider>();
+                        auth.setRememberMe(!auth.rememberMe);
+                      },
+                      child: Text(
+                        'Beni hatırla',
+                        style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Şifremi unuttum',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 SizedBox(
                   width: double.infinity,

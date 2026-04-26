@@ -320,11 +320,8 @@ class ApiService {
   }
 
   // ============== AI CHAT (SSE Streaming) ==============
-  /// Server-Sent Events ile streaming chat response.
-  /// Her token geldiğinde [onToken] çağrılır.
-  /// Bittiğinde [onDone] çağrılır.
-  /// Hata olursa [onError] çağrılır.
-  /// İade edilen [http.Client] cancel için kullanılabilir.
+
+  // ============== AI CHAT (SSE Streaming) ==============
   http.Client? streamChatMessage({
     required int userId,
     required String message,
@@ -336,76 +333,123 @@ class ApiService {
     final request = http.Request('POST', Uri.parse('$baseUrl/chat/send'));
     request.headers['Content-Type'] = 'application/json';
     request.headers['Accept'] = 'text/event-stream';
+    request.headers['Cache-Control'] = 'no-cache';
     request.body = jsonEncode({
       'user_id': userId,
       'message': message,
     });
 
+    bool isClosed = false;
+
+    void closeOnce() {
+      if (isClosed) return;
+      isClosed = true;
+      try {
+        client.close();
+      } catch (_) {}
+    }
+
     client.send(request).then((response) {
       if (response.statusCode != 200) {
         onError('Sunucu hatası: ${response.statusCode}');
-        client.close();
+        closeOnce();
         return;
       }
 
-      // SSE format: "event: <name>\ndata: <content>\n\n"
-      // Her event çift newline ile ayrılır.
+      // Buffer-based SSE parser
+      // SSE spec: events are separated by \n\n
+      // Each event has lines like "event: <name>" and "data: <content>"
       String buffer = '';
-      String? currentEvent;
 
       response.stream.transform(utf8.decoder).listen(
         (chunk) {
+          if (isClosed) return;
           buffer += chunk;
-          // Event'ler \n\n ile ayrılır
-          while (buffer.contains('\n\n')) {
-            final idx = buffer.indexOf('\n\n');
-            final rawEvent = buffer.substring(0, idx);
-            buffer = buffer.substring(idx + 2);
 
-            // Bu event'in satırlarını parse et
+          // Parse complete events (separated by \n\n)
+          while (true) {
+            final separatorIdx = buffer.indexOf('\n\n');
+            if (separatorIdx == -1) break;
+
+            final rawEvent = buffer.substring(0, separatorIdx);
+            buffer = buffer.substring(separatorIdx + 2);
+
             String? eventName;
             final dataLines = <String>[];
+
             for (final line in rawEvent.split('\n')) {
+              if (line.isEmpty) continue;
               if (line.startsWith('event:')) {
                 eventName = line.substring(6).trim();
               } else if (line.startsWith('data:')) {
-                // 'data: ' sonrası her şey - ilk boşluğu da koru
-                final content = line.length > 5 ? line.substring(5) : '';
-                // SSE spec'te 'data: ' (data: + space) standart, space'i kaldır
-                dataLines.add(
-                    content.startsWith(' ') ? content.substring(1) : content);
+                // SSE spec: 'data: foo' -> 'foo' (one space removed)
+                // 'data:foo' -> 'foo'
+                String content;
+                if (line.length > 5 && line[5] == ' ') {
+                  content = line.substring(6);
+                } else {
+                  content = line.substring(5);
+                }
+                dataLines.add(content);
               }
             }
 
-            currentEvent = eventName ?? currentEvent;
+            if (dataLines.isEmpty && eventName == null) continue;
+
+            // Multi-line data joined with newline (per SSE spec)
             final data = dataLines.join('\n');
 
-            if (currentEvent == 'token' && data.isNotEmpty) {
-              onToken(data);
-            } else if (currentEvent == 'done') {
+            if (eventName == 'thinking') {
+              // Backend hazır, ilk token bekleniyor — sadece bağlantı doğrulandı
+              continue;
+            } else if (eventName == 'token') {
+              if (data.isNotEmpty) onToken(data);
+            } else if (eventName == 'done') {
               onDone();
-              client.close();
+              closeOnce();
               return;
-            } else if (currentEvent == 'error') {
-              onError(data);
-              client.close();
+            } else if (eventName == 'error') {
+              onError(data.isEmpty ? 'Bilinmeyen hata' : data);
+              closeOnce();
               return;
             }
           }
         },
         onError: (e) {
+          if (isClosed) return;
           onError('Bağlantı hatası: $e');
-          client.close();
+          closeOnce();
         },
         onDone: () {
+          if (isClosed) return;
+          // Stream kapanırken buffer'da event kalmış olabilir
+          if (buffer.trim().isNotEmpty) {
+            // Son event'i parse et
+            final lines = buffer.split('\n');
+            String? eventName;
+            final dataLines = <String>[];
+            for (final line in lines) {
+              if (line.startsWith('event:')) {
+                eventName = line.substring(6).trim();
+              } else if (line.startsWith('data:')) {
+                final content = line.length > 5 && line[5] == ' '
+                    ? line.substring(6)
+                    : line.substring(5);
+                dataLines.add(content);
+              }
+            }
+            if (eventName == 'token' && dataLines.isNotEmpty) {
+              onToken(dataLines.join('\n'));
+            }
+          }
           onDone();
-          client.close();
+          closeOnce();
         },
         cancelOnError: true,
       );
     }).catchError((e) {
       onError('İstek hatası: $e');
-      client.close();
+      closeOnce();
     });
 
     return client;

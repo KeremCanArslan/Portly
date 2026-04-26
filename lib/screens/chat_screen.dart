@@ -19,9 +19,18 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    // İlk açılışta scroll en alta
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _scrollToBottom(animate: false);
+      // Pending prompt varsa otomatik gönder (Hisseye uzun bas → AI'a sor)
+      if (!mounted) return;
+      final chat = context.read<ChatProvider>();
+      final pending = chat.consumePendingPrompt();
+      if (pending != null && pending.isNotEmpty) {
+        await Future.delayed(const Duration(milliseconds: 400));
+        if (!mounted) return;
+        _inputController.text = pending;
+        _sendMessage();
+      }
     });
   }
 

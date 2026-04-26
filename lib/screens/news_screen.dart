@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:portly/providers/portfolio_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class NewsScreen extends StatelessWidget {
   const NewsScreen({super.key});
@@ -86,7 +87,8 @@ class NewsScreen extends StatelessWidget {
                     };
 
                     return _buildNewsCard(
-                      title,
+                      context,
+                      news as Map<String, dynamic>,
                       _extractSymbolFromTitle(title),
                       sentimentLabel,
                       sentimentColor,
@@ -109,80 +111,193 @@ class NewsScreen extends StatelessWidget {
 
   String _formatDate(dynamic iso) {
     try {
-      final date = DateTime.parse(iso.toString());
-      final diff = DateTime.now().difference(date);
+      // ISO string'i parse et (timezone aware)
+      DateTime date;
+      if (iso is String) {
+        // Backend "2026-04-25T15:30:00" gibi gönderiyor (UTC)
+        date = DateTime.parse(iso);
+        // Eğer string "Z" veya "+" içermiyorsa UTC olarak düşün
+        if (!iso.endsWith('Z') &&
+            !iso.contains('+') &&
+            !iso.substring(iso.length - 6).contains('-')) {
+          date = DateTime.utc(date.year, date.month, date.day, date.hour,
+              date.minute, date.second);
+        }
+      } else {
+        return '';
+      }
+
+      final now = DateTime.now();
+      final diff = now.difference(date.toLocal());
+
+      if (diff.isNegative) {
+        // Gelecek tarih - sadece "şimdi" göster
+        return 'şimdi';
+      }
+      if (diff.inSeconds < 60) return 'az önce';
       if (diff.inMinutes < 60) return '${diff.inMinutes} dk önce';
       if (diff.inHours < 24) return '${diff.inHours} saat önce';
-      return '${diff.inDays} gün önce';
-    } catch (_) {
+      if (diff.inDays < 7) return '${diff.inDays} gün önce';
+
+      // Bir haftadan eskiyse tarih göster
+      final months = [
+        'Oca',
+        'Şub',
+        'Mar',
+        'Nis',
+        'May',
+        'Haz',
+        'Tem',
+        'Ağu',
+        'Eyl',
+        'Eki',
+        'Kas',
+        'Ara'
+      ];
+      final localDate = date.toLocal();
+      return '${localDate.day} ${months[localDate.month - 1]}';
+    } catch (e) {
       return '';
     }
   }
 
-  Widget _buildNewsCard(String title, String symbol, String sentiment,
-      Color sentimentColor, double score, String time) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(symbol,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12)),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: sentimentColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
+  Widget _buildNewsCard(
+      BuildContext context,
+      Map<String, dynamic> news,
+      String symbol,
+      String sentiment,
+      Color sentimentColor,
+      double score,
+      String time) {
+    final title = news['title'] as String? ?? 'Başlık Yok';
+    final description = news['description'] as String? ?? '';
+    final url = news['url'] as String? ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () async {
+            if (url.isEmpty) return;
+            final uri = Uri.tryParse(url);
+            if (uri == null) return;
+            try {
+              final ok =
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+              if (!ok && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Haber açılamadı')),
+                );
+              }
+            } catch (_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Haber açılamadı')),
+                );
+              }
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      sentiment == 'Pozitif'
-                          ? Icons.trending_up
-                          : sentiment == 'Negatif'
-                              ? Icons.trending_down
-                              : Icons.horizontal_rule,
-                      color: sentimentColor,
-                      size: 14,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(symbol,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12)),
                     ),
-                    const SizedBox(width: 4),
-                    Text('AI: $sentiment (${score.toStringAsFixed(2)})',
-                        style: TextStyle(
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: sentimentColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            sentiment == 'Pozitif'
+                                ? Icons.trending_up
+                                : sentiment == 'Negatif'
+                                    ? Icons.trending_down
+                                    : Icons.horizontal_rule,
                             color: sentimentColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12)),
+                            size: 14,
+                          ),
+                          const SizedBox(width: 4),
+                          Text('AI: $sentiment (${score.toStringAsFixed(2)})',
+                              style: TextStyle(
+                                  color: sentimentColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12)),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600)),
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: Colors.grey[400], fontSize: 12, height: 1.5),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(time,
+                        style:
+                            TextStyle(color: Colors.grey[500], fontSize: 12)),
+                    const Spacer(),
+                    if (url.isNotEmpty)
+                      Row(
+                        children: [
+                          Text('Habere git',
+                              style: TextStyle(
+                                  color:
+                                      Colors.tealAccent.withValues(alpha: 0.8),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 4),
+                          Icon(Icons.open_in_new,
+                              color: Colors.tealAccent.withValues(alpha: 0.8),
+                              size: 12),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Text(time, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-        ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:portly/services/api_service.dart';
@@ -43,6 +44,7 @@ class ChatProvider extends ChangeNotifier {
   bool _isLoadingHistory = false;
   bool _isStreaming = false;
   String? _error;
+  String? _pendingPrompt;
   http.Client? _activeStream;
 
   // Getters
@@ -50,6 +52,7 @@ class ChatProvider extends ChangeNotifier {
   bool get isLoadingHistory => _isLoadingHistory;
   bool get isStreaming => _isStreaming;
   String? get error => _error;
+  String? get pendingPrompt => _pendingPrompt;
   bool get hasMessages => _messages.isNotEmpty;
   int? get userId => _userId;
 
@@ -86,19 +89,20 @@ class ChatProvider extends ChangeNotifier {
   }
 
   /// Mesaj gönder ve streaming cevabı al
+  /// Mesaj gönder ve streaming cevabı al
   Future<void> sendMessage(String text) async {
     if (_userId == null || text.trim().isEmpty || _isStreaming) return;
 
     _error = null;
 
-    // Kullanıcı mesajını hemen ekle (optimistic UI)
+    // Kullanıcı mesajını hemen ekle
     _messages.add(ChatMessage(
       role: 'user',
       content: text.trim(),
       timestamp: DateTime.now(),
     ));
 
-    // Asistan placeholder'ı (streaming için)
+    // Asistan placeholder
     final assistantMessage = ChatMessage(
       role: 'assistant',
       content: '',
@@ -111,21 +115,36 @@ class ChatProvider extends ChangeNotifier {
     _isStreaming = true;
     notifyListeners();
 
-    // SSE stream başlat
-    final completer = _StreamCompleter();
+    final completer = Completer<void>();
+
+    // Token buffering: gelen token'ları biriktir, 50ms'de bir flush et
+    String tokenBuffer = '';
+    Timer? flushTimer;
+
+    void flushBuffer() {
+      if (tokenBuffer.isEmpty) return;
+      if (assistantIndex < _messages.length) {
+        _messages[assistantIndex] = _messages[assistantIndex].copyWith(
+          content: _messages[assistantIndex].content + tokenBuffer,
+        );
+        notifyListeners();
+      }
+      tokenBuffer = '';
+    }
 
     _activeStream = _api.streamChatMessage(
       userId: _userId!,
       message: text.trim(),
       onToken: (token) {
-        if (assistantIndex < _messages.length) {
-          _messages[assistantIndex] = _messages[assistantIndex].copyWith(
-            content: _messages[assistantIndex].content + token,
-          );
-          notifyListeners();
-        }
+        tokenBuffer += token;
+        // Periyodik flush — 60ms'de bir UI'a gönder
+        flushTimer ??= Timer.periodic(const Duration(milliseconds: 60), (_) {
+          flushBuffer();
+        });
       },
       onDone: () {
+        flushTimer?.cancel();
+        flushBuffer(); // Kalan buffer'ı boşalt
         if (assistantIndex < _messages.length) {
           _messages[assistantIndex] = _messages[assistantIndex].copyWith(
             isStreaming: false,
@@ -137,6 +156,8 @@ class ChatProvider extends ChangeNotifier {
         completer.complete();
       },
       onError: (err) {
+        flushTimer?.cancel();
+        flushBuffer();
         if (assistantIndex < _messages.length) {
           final current = _messages[assistantIndex].content;
           _messages[assistantIndex] = _messages[assistantIndex].copyWith(
@@ -168,7 +189,17 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Tüm sohbeti sil
+  /// Chat ekranı açılırken otomatik gönderilecek soruyu set et
+  void setPendingPrompt(String? prompt) {
+    _pendingPrompt = prompt;
+  }
+
+  String? consumePendingPrompt() {
+    final p = _pendingPrompt;
+    _pendingPrompt = null;
+    return p;
+  }
+
   Future<bool> clearHistory() async {
     if (_userId == null) return false;
     final success = await _api.clearChatHistory(_userId!);

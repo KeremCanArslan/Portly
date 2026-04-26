@@ -6,6 +6,7 @@ import 'package:portly/services/api_service.dart';
 class AuthProvider extends ChangeNotifier {
   static const _tokenKey = 'auth_token';
   static const _userKey = 'auth_user';
+  static const _rememberKey = 'auth_remember'; // YENİ
 
   final ApiService _apiService = ApiService();
 
@@ -13,6 +14,7 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _currentUser;
   bool _isLoading = true;
   String? _error;
+  bool _rememberMe = true; // YENİ - varsayılan açık
 
   String? get token => _token;
   Map<String, dynamic>? get currentUser => _currentUser;
@@ -22,6 +24,7 @@ class AuthProvider extends ChangeNotifier {
   int? get userId => _currentUser?['id'] as int?;
   String? get fullName => _currentUser?['full_name'] as String?;
   String? get email => _currentUser?['email'] as String?;
+  bool get rememberMe => _rememberMe; // YENİ
 
   AuthProvider() {
     _bootstrap();
@@ -30,6 +33,14 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _bootstrap() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Beni hatırla kapalıysa hiç dene bile
+      _rememberMe = prefs.getBool(_rememberKey) ?? true;
+      if (!_rememberMe) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
       final savedToken = prefs.getString(_tokenKey);
       final savedUser = prefs.getString(_userKey);
 
@@ -55,6 +66,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setRememberMe(bool value) {
+    _rememberMe = value;
+    notifyListeners();
+  }
+
   Future<bool> login(String email, String password) async {
     _error = null;
     notifyListeners();
@@ -64,8 +80,15 @@ class AuthProvider extends ChangeNotifier {
       _token = result['access_token'] as String;
       _currentUser = result['user'] as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, _token!);
-      await prefs.setString(_userKey, jsonEncode(_currentUser));
+      await prefs.setBool(_rememberKey, _rememberMe);
+      // Beni hatırla açıksa kaydet, kapalıysa temizle
+      if (_rememberMe) {
+        await prefs.setString(_tokenKey, _token!);
+        await prefs.setString(_userKey, jsonEncode(_currentUser));
+      } else {
+        await prefs.remove(_tokenKey);
+        await prefs.remove(_userKey);
+      }
       notifyListeners();
       return true;
     } else {
@@ -84,8 +107,11 @@ class AuthProvider extends ChangeNotifier {
       _token = result['access_token'] as String;
       _currentUser = result['user'] as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, _token!);
-      await prefs.setString(_userKey, jsonEncode(_currentUser));
+      await prefs.setBool(_rememberKey, _rememberMe);
+      if (_rememberMe) {
+        await prefs.setString(_tokenKey, _token!);
+        await prefs.setString(_userKey, jsonEncode(_currentUser));
+      }
       notifyListeners();
       return true;
     } else {

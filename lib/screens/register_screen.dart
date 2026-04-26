@@ -54,7 +54,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    if (!success) {
+    if (success) {
+      // Register başarılı - tüm route stack'i temizle
+      // AuthGate auth state'i görünce otomatik MainScreen'e geçecek
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(auth.error ?? 'Kayıt başarısız'),

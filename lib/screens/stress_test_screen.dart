@@ -183,15 +183,11 @@ class _StressTestScreenState extends State<StressTestScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildScenarioInfo(),
+        _buildStoryCard(sim), // YENİ - tek hikaye kartı
         const SizedBox(height: 16),
-        _buildKeyMetrics(sim),
-        const SizedBox(height: 20),
-        _buildSamplePathsChart(sim),
-        const SizedBox(height: 20),
-        _buildHistogram(sim),
-        const SizedBox(height: 20),
-        _buildAcademicNote(),
+        _buildSamplePathsChart(sim), // Fan chart aynı kalsın
+        const SizedBox(height: 16),
+        _buildDetailsExpand(sim), // YENİ - detaylar gizli
       ],
     );
   }
@@ -351,6 +347,196 @@ class _StressTestScreenState extends State<StressTestScreen> {
     );
   }
 
+// Hikaye anlatıcı tek kart - kullanıcının anlayacağı dilde
+  Widget _buildStoryCard(Map<String, dynamic> sim) {
+    final initial = (sim['initial_value'] as num).toDouble();
+    final mean = (sim['mean'] as num).toDouble();
+    final p5 = (sim['p5_worst_case'] as num).toDouble();
+    final p95 = (sim['p95_best_case'] as num).toDouble();
+    final var95 = (sim['var_95'] as num).toDouble();
+    final expectedPct = (sim['expected_return_pct'] as num).toDouble();
+    final isPositive = expectedPct >= 0;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isPositive
+              ? [const Color(0xFF1a3a4a), const Color(0xFF0f2027)]
+              : [const Color(0xFF3a1a1a), const Color(0xFF200f0f)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: (isPositive ? Colors.tealAccent : Colors.redAccent)
+              .withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isPositive ? Icons.trending_up : Icons.trending_down,
+                color: isPositive ? Colors.tealAccent : Colors.redAccent,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                _result!['scenario_name'] as String,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          // Ana mesaj
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                height: 1.6,
+              ),
+              children: [
+                const TextSpan(
+                    text: '30 gün sonra portföyün büyük olasılıkla\n'),
+                TextSpan(
+                  text:
+                      '₺${p5.toStringAsFixed(0)} ile ₺${p95.toStringAsFixed(0)} ',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const TextSpan(text: 'arasında olur.\n\n'),
+                const TextSpan(
+                  text: 'Beklenen değer: ',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                TextSpan(
+                  text: '₺${mean.toStringAsFixed(0)} ',
+                  style: TextStyle(
+                    color: isPositive ? Colors.tealAccent : Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                TextSpan(
+                  text:
+                      '(${isPositive ? '+' : ''}${expectedPct.toStringAsFixed(1)}%)',
+                  style: TextStyle(
+                    color: isPositive ? Colors.tealAccent : Colors.redAccent,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          // VaR uyarısı
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.shield_outlined,
+                    color: Colors.redAccent, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Kötü senaryoda ₺${var95.toStringAsFixed(0)} kaybetme riskin var (%5 olasılık)',
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 12, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Detaylar - default kapalı
+  Widget _buildDetailsExpand(Map<String, dynamic> sim) {
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          iconColor: Colors.tealAccent,
+          collapsedIconColor: Colors.grey,
+          title: Row(
+            children: [
+              Icon(Icons.info_outline,
+                  color: Colors.tealAccent.withValues(alpha: 0.7), size: 18),
+              const SizedBox(width: 10),
+              const Text('Bu test ne yapıyor?',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold)),
+            ],
+          ),
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              _result!['scenario_description'] as String,
+              style:
+                  TextStyle(color: Colors.grey[300], fontSize: 13, height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Nasıl hesaplandı?',
+                    style: TextStyle(
+                        color: Colors.tealAccent.withValues(alpha: 0.9),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Geometric Brownian Motion ile ${sim['n_simulations']} simülasyon. Her simülasyon, portföyünün 30 gün boyunca alabileceği farklı bir yolu temsil ediyor. Yukarıdaki aralık, bu 10.000 olası geleceğin %90\'ı içeriyor.',
+                    style: TextStyle(
+                        color: Colors.grey[300], fontSize: 12, height: 1.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '📚 ${_result!['academic_reference']}',
+                    style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSamplePathsChart(Map<String, dynamic> sim) {
     final fanData = sim['fan_chart'] as List?;
     if (fanData == null || fanData.isEmpty) return const SizedBox.shrink();
@@ -398,15 +584,41 @@ class _StressTestScreenState extends State<StressTestScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Olasılık Aralığı (30 Günlük Projeksiyon)',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(
-            'Ortanca senaryo • %50 ve %90 güven aralıkları',
-            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+          Row(
+            children: [
+              Icon(Icons.timeline,
+                  color: Colors.tealAccent.withValues(alpha: 0.7), size: 18),
+              const SizedBox(width: 8),
+              const Text('30 Günlük Projeksiyon',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.tealAccent.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+              border:
+                  Border.all(color: Colors.tealAccent.withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.lightbulb_outline,
+                    color: Colors.tealAccent.withValues(alpha: 0.7), size: 14),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Ortadaki çizgi en olası senaryo. Açık alan, portföy değerinin gidebileceği aralığı gösterir.',
+                    style: TextStyle(
+                        color: Colors.white70, fontSize: 11, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Expanded(
@@ -580,11 +792,25 @@ class _StressTestScreenState extends State<StressTestScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Olası Sonuç Dağılımı (10,000 simülasyon)',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Icon(Icons.bar_chart,
+                  color: Colors.tealAccent.withValues(alpha: 0.7), size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Olası Sonuçların Dağılımı',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'En olası sonuçlar ortada toplanır',
+            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+          ),
           const SizedBox(height: 12),
           Expanded(
             child: BarChart(

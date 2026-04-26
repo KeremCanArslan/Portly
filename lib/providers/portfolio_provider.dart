@@ -28,10 +28,14 @@ class PortfolioProvider extends ChangeNotifier {
   String? _token;
 
   static const List<String> _defaultWatchlist = [
+    "GC=F", // Gram Altın (Gold Futures)
+    "USDTRY=X", // Dolar/TL
+    "EURTRY=X", // Euro/TL
+    "BTC-USD", // Bitcoin
     "THYAO.IS",
     "ASELS.IS",
     "AAPL",
-    "TSLA"
+    "NVDA",
   ];
 
   final ApiService _apiService = ApiService();
