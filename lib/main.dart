@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:portly/providers/auth_provider.dart';
 import 'package:portly/providers/portfolio_provider.dart';
 import 'package:portly/providers/chat_provider.dart';
@@ -48,7 +47,6 @@ class PortlyApp extends StatelessWidget {
         brightness: Brightness.dark,
         primaryColor: Colors.tealAccent,
         scaffoldBackgroundColor: const Color(0xFF121212),
-        textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
         useMaterial3: true,
       ),
       home: const AuthGate(),
@@ -94,8 +92,8 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title:
-            const Text('Portly', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Portly',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -114,6 +112,7 @@ class _MainScreenState extends State<MainScreen> {
         selectedItemColor: Colors.tealAccent,
         unselectedItemColor: Colors.grey,
         backgroundColor: const Color(0xFF1E1E1E),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
               icon: Icon(Icons.show_chart), label: 'Piyasalar'),
@@ -139,16 +138,16 @@ class _MainScreenState extends State<MainScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child:
-                const Text('Vazgeç', style: TextStyle(color: Colors.white54)),
+            child: const Text('Vazgeç',
+                style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               context.read<AuthProvider>().logout();
             },
-            child:
-                const Text('Çıkış', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Çıkış',
+                style: TextStyle(color: Colors.redAccent)),
           ),
         ],
       ),

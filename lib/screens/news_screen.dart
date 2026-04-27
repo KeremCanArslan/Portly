@@ -111,12 +111,12 @@ class NewsScreen extends StatelessWidget {
 
   String _formatDate(dynamic iso) {
     try {
-      // ISO string'i parse et (timezone aware)
+
       DateTime date;
       if (iso is String) {
-        // Backend "2026-04-25T15:30:00" gibi gönderiyor (UTC)
+
         date = DateTime.parse(iso);
-        // Eğer string "Z" veya "+" içermiyorsa UTC olarak düşün
+
         if (!iso.endsWith('Z') &&
             !iso.contains('+') &&
             !iso.substring(iso.length - 6).contains('-')) {
@@ -131,7 +131,7 @@ class NewsScreen extends StatelessWidget {
       final diff = now.difference(date.toLocal());
 
       if (diff.isNegative) {
-        // Gelecek tarih - sadece "şimdi" göster
+
         return 'şimdi';
       }
       if (diff.inSeconds < 60) return 'az önce';
@@ -139,7 +139,7 @@ class NewsScreen extends StatelessWidget {
       if (diff.inHours < 24) return '${diff.inHours} saat önce';
       if (diff.inDays < 7) return '${diff.inDays} gün önce';
 
-      // Bir haftadan eskiyse tarih göster
+
       final months = [
         'Oca',
         'Şub',

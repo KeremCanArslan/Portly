@@ -34,7 +34,7 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // === Üst bar ===
+         
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -59,7 +59,6 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
 
-                // === Toplam varlık kartı ===
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -126,17 +125,16 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // === AI KOÇ KARTI ===
+          
                 _buildAICoachCard(context),
                 const SizedBox(height: 12),
 
-                // === DAVRANIŞSAL PROFİL KARTI ===
                 _buildBehaviorCard(context),
                 const SizedBox(height: 30),
                 const SizedBox(height: 12),
                 _buildStressCard(context),
 
-                // === İzleme Listesi Başlığı + Ekle Butonu ===
+  
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -189,9 +187,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ==========================================
-  // AI KOÇ KARTI
-  // ==========================================
   Widget _buildAICoachCard(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -369,9 +364,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ==========================================
-  // HİSSE EKLEME DIALOG'U
-  // ==========================================
+
   void _showAddStockDialog(BuildContext context) {
     final controller = TextEditingController();
     List<Map<String, dynamic>> suggestions = [];
@@ -382,7 +375,6 @@ class HomeScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (ctx, setState) {
-          // Debounced arama: kullanıcı 300ms boyunca yazmazsa istek at
           void onQueryChanged(String value) {
             debounceTimer?.cancel();
             if (value.trim().isEmpty) {
@@ -643,9 +635,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // ==========================================
-  // HİSSE KARTI (Dismissible + dinamik currency)
-  // ==========================================
+
   Widget _buildStockCard(BuildContext context, Map<String, dynamic> data) {
     final isUp = data['isUp'] as bool;
     final currency = data['currency'] as String? ?? '₺';

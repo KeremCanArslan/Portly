@@ -15,7 +15,7 @@ class ApiService {
   static String get baseUrl {
     if (kIsWeb) return "http://127.0.0.1:8000/api/v1";
     if (Platform.isAndroid) return "http://10.0.2.2:8000/api/v1";
-    if (Platform.isIOS) return "http://127.0.0.1:8000/api/v1";
+    if (Platform.isIOS) return "http://192.168.1.19:8000/api/v1";
     return "http://127.0.0.1:8000/api/v1";
   }
 
@@ -168,6 +168,20 @@ class ApiService {
     } catch (e) {
       debugPrint('fetchUserPortfolio hata: $e');
       return [];
+    }
+  }
+Future<Map<String, dynamic>> fetchSectorBreakdown(int userId) async {
+    try {
+      final response = await http
+          .get(Uri.parse('$baseUrl/portfolio/$userId/sectors'))
+          .timeout(_timeout);
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+      return {'sectors': [], 'total_value': 0.0};
+    } catch (e) {
+      debugPrint('fetchSectorBreakdown hata: $e');
+      return {'sectors': [], 'total_value': 0.0};
     }
   }
 

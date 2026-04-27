@@ -21,7 +21,6 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _scrollToBottom(animate: false);
-      // Pending prompt varsa otomatik gönder (Hisseye uzun bas → AI'a sor)
       if (!mounted) return;
       final chat = context.read<ChatProvider>();
       final pending = chat.consumePendingPrompt();
@@ -167,10 +166,10 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
-          // Portföy özet rozeti
+
           if (portfolio.totalAssetValue > 0) _buildPortfolioBadge(portfolio),
 
-          // Mesajlar
+
           Expanded(
             child: chat.isLoadingHistory
                 ? const Center(
@@ -180,7 +179,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     : _buildMessagesList(chat),
           ),
 
-          // Input bar
+
           _buildInputBar(chat),
         ],
       ),
@@ -272,7 +271,7 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Column(
         children: [
           const SizedBox(height: 20),
-          // AI avatar büyük
+        
           Container(
             width: 80,
             height: 80,
@@ -308,7 +307,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 32),
-          // Önerilen sorular
+          
           ...suggestions.map((s) => _buildSuggestionCard(s.$1, s.$2, s.$3)),
         ],
       ),

@@ -6,7 +6,7 @@ import 'package:portly/services/api_service.dart';
 class AuthProvider extends ChangeNotifier {
   static const _tokenKey = 'auth_token';
   static const _userKey = 'auth_user';
-  static const _rememberKey = 'auth_remember'; // YENİ
+  static const _rememberKey = 'auth_remember'; 
 
   final ApiService _apiService = ApiService();
 
@@ -14,7 +14,7 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _currentUser;
   bool _isLoading = true;
   String? _error;
-  bool _rememberMe = true; // YENİ - varsayılan açık
+  bool _rememberMe = true; 
 
   String? get token => _token;
   Map<String, dynamic>? get currentUser => _currentUser;
@@ -24,7 +24,7 @@ class AuthProvider extends ChangeNotifier {
   int? get userId => _currentUser?['id'] as int?;
   String? get fullName => _currentUser?['full_name'] as String?;
   String? get email => _currentUser?['email'] as String?;
-  bool get rememberMe => _rememberMe; // YENİ
+  bool get rememberMe => _rememberMe; 
 
   AuthProvider() {
     _bootstrap();
@@ -33,7 +33,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _bootstrap() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Beni hatırla kapalıysa hiç dene bile
+  
       _rememberMe = prefs.getBool(_rememberKey) ?? true;
       if (!_rememberMe) {
         _isLoading = false;
@@ -81,7 +81,7 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = result['user'] as Map<String, dynamic>;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_rememberKey, _rememberMe);
-      // Beni hatırla açıksa kaydet, kapalıysa temizle
+
       if (_rememberMe) {
         await prefs.setString(_tokenKey, _token!);
         await prefs.setString(_userKey, jsonEncode(_currentUser));

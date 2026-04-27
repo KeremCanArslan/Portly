@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:portly/services/api_service.dart';
-import 'package:portly/providers/auth_provider.dart';
 
 class PortfolioProvider extends ChangeNotifier {
-  // ============== STATE ==============
+
   double _balance = 0.0;
 
   List<Map<String, dynamic>> _marketData = [];
@@ -28,10 +27,10 @@ class PortfolioProvider extends ChangeNotifier {
   String? _token;
 
   static const List<String> _defaultWatchlist = [
-    "GC=F", // Gram Altın (Gold Futures)
-    "USDTRY=X", // Dolar/TL
-    "EURTRY=X", // Euro/TL
-    "BTC-USD", // Bitcoin
+    "GC=F", 
+    "USDTRY=X", 
+    "EURTRY=X", 
+    "BTC-USD", 
     "THYAO.IS",
     "ASELS.IS",
     "AAPL",
@@ -40,7 +39,7 @@ class PortfolioProvider extends ChangeNotifier {
 
   final ApiService _apiService = ApiService();
 
-  // ============== GETTERS ==============
+
   int? get userId => _userId;
   double get balance => _balance;
   List<Map<String, dynamic>> get marketData => _marketData;
@@ -85,7 +84,7 @@ class PortfolioProvider extends ChangeNotifier {
     return (totalPnl / totalCost) * 100;
   }
 
-  // ============== CONSTRUCTOR & LIFECYCLE ==============
+
   PortfolioProvider() {
     _init();
   }
@@ -118,7 +117,7 @@ class PortfolioProvider extends ChangeNotifier {
     }
   }
 
-  // ============== WATCHLIST ==============
+
   Future<bool> addToWatchlist(String symbol) async {
     symbol = symbol.toUpperCase().trim();
     if (symbol.isEmpty) return false;
@@ -138,7 +137,7 @@ class PortfolioProvider extends ChangeNotifier {
     await loadMarketData();
   }
 
-  // ============== LOADERS ==============
+
   Future<void> refreshAll() async {
     await Future.wait([
       loadMarketData(),
@@ -214,7 +213,6 @@ class PortfolioProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============== TRADING ==============
   Future<bool> generateDemoTrades() async {
     if (_userId == null) return false;
     final result = await _apiService.generateDemoTrades(_userId!);

@@ -3,12 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:portly/services/api_service.dart';
 
-/// Chat mesajı modeli
 class ChatMessage {
-  final String role; // 'user' | 'assistant'
+  final String role;
   final String content;
   final DateTime timestamp;
-  final bool isStreaming; // assistant streaming durumunda true
+  final bool isStreaming;
 
   ChatMessage({
     required this.role,
@@ -47,7 +46,6 @@ class ChatProvider extends ChangeNotifier {
   String? _pendingPrompt;
   http.Client? _activeStream;
 
-  // Getters
   List<ChatMessage> get messages => List.unmodifiable(_messages);
   bool get isLoadingHistory => _isLoadingHistory;
   bool get isStreaming => _isStreaming;
@@ -56,7 +54,6 @@ class ChatProvider extends ChangeNotifier {
   bool get hasMessages => _messages.isNotEmpty;
   int? get userId => _userId;
 
-  /// AuthProvider'dan çağrılır
   void updateAuth(int? newUserId) {
     if (_userId == newUserId) return;
     _userId = newUserId;
@@ -69,7 +66,6 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  /// Sohbet geçmişini yükle
   Future<void> loadHistory() async {
     if (_userId == null) return;
     _isLoadingHistory = true;
@@ -88,21 +84,17 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Mesaj gönder ve streaming cevabı al
-  /// Mesaj gönder ve streaming cevabı al
   Future<void> sendMessage(String text) async {
     if (_userId == null || text.trim().isEmpty || _isStreaming) return;
 
     _error = null;
 
-    // Kullanıcı mesajını hemen ekle
     _messages.add(ChatMessage(
       role: 'user',
       content: text.trim(),
       timestamp: DateTime.now(),
     ));
 
-    // Asistan placeholder
     final assistantMessage = ChatMessage(
       role: 'assistant',
       content: '',
@@ -117,7 +109,6 @@ class ChatProvider extends ChangeNotifier {
 
     final completer = Completer<void>();
 
-    // Token buffering: gelen token'ları biriktir, 50ms'de bir flush et
     String tokenBuffer = '';
     Timer? flushTimer;
 
@@ -137,14 +128,13 @@ class ChatProvider extends ChangeNotifier {
       message: text.trim(),
       onToken: (token) {
         tokenBuffer += token;
-        // Periyodik flush — 60ms'de bir UI'a gönder
         flushTimer ??= Timer.periodic(const Duration(milliseconds: 60), (_) {
           flushBuffer();
         });
       },
       onDone: () {
         flushTimer?.cancel();
-        flushBuffer(); // Kalan buffer'ı boşalt
+        flushBuffer();
         if (assistantIndex < _messages.length) {
           _messages[assistantIndex] = _messages[assistantIndex].copyWith(
             isStreaming: false,
@@ -153,7 +143,7 @@ class ChatProvider extends ChangeNotifier {
         _isStreaming = false;
         _activeStream = null;
         notifyListeners();
-        completer.complete();
+        if (!completer.isCompleted) completer.complete();
       },
       onError: (err) {
         flushTimer?.cancel();
@@ -169,14 +159,13 @@ class ChatProvider extends ChangeNotifier {
         _isStreaming = false;
         _activeStream = null;
         notifyListeners();
-        completer.complete();
+        if (!completer.isCompleted) completer.complete();
       },
     );
 
     await completer.future;
   }
 
-  /// Aktif streaming'i iptal et
   void cancelStream() {
     _activeStream?.close();
     _activeStream = null;
@@ -189,7 +178,6 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Chat ekranı açılırken otomatik gönderilecek soruyu set et
   void setPendingPrompt(String? prompt) {
     _pendingPrompt = prompt;
   }
@@ -219,28 +207,5 @@ class ChatProvider extends ChangeNotifier {
   void dispose() {
     _activeStream?.close();
     super.dispose();
-  }
-}
-
-/// Stream tamamlanmasını bekleyen yardımcı
-class _StreamCompleter {
-  bool _completed = false;
-  final List<void Function()> _listeners = [];
-
-  void complete() {
-    if (_completed) return;
-    _completed = true;
-    for (final l in _listeners) {
-      l();
-    }
-  }
-
-  Future<void> get future {
-    if (_completed) return Future.value();
-    return Future(() async {
-      while (!_completed) {
-        await Future.delayed(const Duration(milliseconds: 50));
-      }
-    });
   }
 }

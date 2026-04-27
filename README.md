@@ -1,17 +1,26 @@
-# portly
+Backend
 
-A new Flutter project.
+cd backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
 
-## Getting Started
+.env dosyasını oluşturun ve API anahtarlarınızı ekleyin:
 
-This project is a starting point for a Flutter application.
+DATABASE_URL=sqlite:///./portly.db
+SECRET_KEY=your_secret_key
+GROQ_API_KEY=your_groq_key
 
-A few resources to get you started if this is your first Flutter project:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# Portly
+Frontend
+
+lib/services/api_service.dart dosyasını açın ve baseUrl kısmını kendi yerel IP adresinizle güncelleyin:
+
+if (Platform.isIOS) return "http://192.168.x.x:8000/api/v1"; (ios)
+
+flutter pub get
+flutter run
+
+Uygulama beyaz ekranda kalırsa flutter run --release komutu ile AOT modunda çalıştırılması önerilir. (ios)

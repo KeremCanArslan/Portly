@@ -25,14 +25,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   double _maxPrice = 0;
   String _currency = '₺';
 
-  // Bu hisseye ait haberler (sentiment overlay için)
+
   List<dynamic> _relatedNews = [];
 
   @override
   void initState() {
     super.initState();
     _currency =
-        widget.stockData['currency'] as String? ?? '₺'; // ← BU SATIRI EKLE
+        widget.stockData['currency'] as String? ?? '₺';
     _loadHistory();
     _loadRelatedNews();
   }
@@ -65,7 +65,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   Future<void> _loadRelatedNews() async {
-    // Tüm haberleri al, sembolü başlıkta geçenleri filtrele
     final allNews = await _apiService.fetchNews();
     final symbol = (widget.stockData['symbol'] as String).replaceAll('.IS', '');
 
@@ -104,7 +103,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // === Başlık + Fiyat ===
               Text(name,
                   style: TextStyle(color: Colors.grey[400], fontSize: 14)),
               const SizedBox(height: 8),
@@ -150,22 +148,18 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 ),
               const SizedBox(height: 24),
 
-              // === Periyot Seçici ===
+
               _buildPeriodSelector(),
               const SizedBox(height: 16),
 
-              // === Grafik ===
               _buildChart(),
               const SizedBox(height: 24),
 
-              // === Alım-Satım Butonları ===
               _buildActionButtons(context, symbol, name, price, held),
               const SizedBox(height: 24),
 
-              // === Sentiment Overlay Açıklaması ===
               if (_relatedNews.isNotEmpty) _buildSentimentLegend(),
 
-              // === İlgili Haberler ===
               if (_relatedNews.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(
@@ -268,8 +262,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final padding = (_maxPrice - _minPrice) * 0.1;
     final minY = _minPrice - padding;
     final maxY = _maxPrice + padding;
-
-    // Sentiment overlay noktalarını hesapla
     final sentimentSpots = _calculateSentimentSpots(minY, maxY);
 
     return Container(
@@ -309,10 +301,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      dateStr.substring(5), // MM-DD
+                      dateStr.substring(5), 
                       style: TextStyle(color: Colors.grey[500], fontSize: 10),
                     ),
-                  );
+                  );  
                 },
               ),
             ),
@@ -329,7 +321,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
-            // Ana fiyat çizgisi
+
             LineChartBarData(
               spots: _priceSpots,
               isCurved: true,
@@ -348,7 +340,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 ),
               ),
             ),
-            // Sentiment noktaları (eğer varsa)
+
             if (sentimentSpots.isNotEmpty)
               LineChartBarData(
                 spots: sentimentSpots,
@@ -404,8 +396,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   List<FlSpot> _calculateSentimentSpots(double minY, double maxY) {
-    // Haberlerin sentiment'larını grafik üzerine nokta olarak yerleştir
-    // Haberlerin sayısını fiyat grafiğine dağıt
+
     if (_relatedNews.isEmpty || _priceSpots.isEmpty) return [];
 
     final spots = <FlSpot>[];
