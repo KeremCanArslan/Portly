@@ -1,0 +1,8 @@
+# Geliştirme / test bağımlılıkları.
+#
+# Prod imajına GİRMEZ: Dockerfile yalnız requirements.txt'i kurar, böylece
+# prod imajı yalın kalır. Testleri lokal koşmak için:
+#   cd backend && pip install -r requirements-dev.txt && pytest
+-r requirements.txt
+pytest==9.0.3
+reportlab==4.4.4   # testlerde sahte ekstre PDF'i üretmek için

@@ -1,0 +1,85 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Python virtualenv (private repo'da bile büyük, OS-spesifik)
+backend/venv/
+venv/
+.venv/
+
+# Python cache
+backend/**/__pycache__/
+__pycache__/
+*.pyc
+
+# Secrets — git'te tutulMAZ. Production'da cloud env-var, lokal'de .env.
+.env
+backend/.env
+backend/portly.db
+backend/*.db
+
+# Lokal dev helper'ları (kullanıcıya özel, paylaşılmaz)
+backend/_init_sqlite.py
+start.bat
+.claude/settings.local.json
+.claude/settings.local.json.bak
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa
+.aider*
+
+# Gemini/LLM için üretilen kod dökümleri (full_code.txt ~150 MB) — repoya girmez
+full_code.txt
+# Kerem baska bir modele vermek icin donem donem yeni isimlerle uretiyor
+# (python_temiz / flutter_yeni / python_son ...) — hepsi elensin.
+python_*.txt
+flutter_*.txt
+
+# Android imzalama — anahtar ve şifreler ASLA repoya girmez
+android/key.properties
+*.jks
+*.keystore

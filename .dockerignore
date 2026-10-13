@@ -1,0 +1,40 @@
+# Docker build context'inden hariç tut — büyük/güvenliksiz dosyalar.
+.git
+.github
+.dart_tool
+.flutter-plugins*
+.idea
+.vscode
+
+# Flutter taraf gerek değil (backend image'ı)
+android/
+ios/
+linux/
+macos/
+windows/
+web/
+lib/
+test/
+build/
+pubspec.*
+analysis_options.yaml
+*.dart
+
+# Python artifactları
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.db
+backend/.env
+
+# Secret/state
+.env
+*.apk
+*.aab
+*.ipa
+*.log
+
+# Doc/handoff dosyaları (image'a gerek yok)
+*.md
+*.pdf
+*.html

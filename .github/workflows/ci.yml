@@ -1,0 +1,35 @@
+name: CI
+
+# Test omurgası (30. tur) artık her main push'unda + PR'da otomatik koşar.
+# Testler ağ/Postgres istemez (bkz. backend/tests/conftest.py — bellek-içi SQLite
+# + fiyat/FX mock). PORTLY_ENV set EDİLMEZ → development kalır → config.py
+# SECRET_KEY'i rastgele üretir (production olsa sys.exit ederdi). DATABASE_URL
+# default sqlite; create_engine import'ta bağlanmaz, dosya yaratmaz.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend pytest (Python 3.11)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11" # prod imajı python:3.11-slim ile aynı
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Bağımlılıkları kur
+        run: pip install -r requirements-dev.txt
+
+      - name: Testleri koş
+        run: pytest

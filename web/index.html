@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Portföyünü takip et, haberleri izle, AL/TUT/SAT sinyallerini gör.">
+  <meta name="theme-color" content="#000000">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+  <!-- iOS standalone (Ana Ekrana Ekle → tam ekran uygulama).
+       status-bar 'black': iOS durum çubuğu için yer ayırır; içerik
+       çentiğin/saatin ALTINA kaçmaz (translucent + viewport-fit=cover
+       birleşimi standalone'da layout'u bozuyordu). -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Portly">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- CanvasKit (Flutter render motoru) Google'ın CDN'inden iniyor: bağlantıyı
+       önden kur → ilk açılışta DNS+TLS turu (mobilde ~200-400 ms) beklemeye
+       eklenmesin. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://www.gstatic.com">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Portly</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* iOS PWA scroll snap-back fix: standalone (Ana Ekrana Ekle) modda iOS'un
+       rubber-band overscroll'u Flutter'ın scroll'una karışıp scroll konumunu
+       beklenmedik şekilde sıfırlıyordu. overscroll-behavior:none ile dış scroll'u
+       susturuyoruz; Flutter kendi içinde scroll'larken iOS karışmaz. Mac/desktop
+       browser'da bu sorun yoktu çünkü rubber-band'i tab-içi tetiklenmez. */
+    html, body {
+      margin: 0; padding: 0; background: #000;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Açılış splash'i — JS inip parse edilene kadar beyaz ekran yerine
+       markalı, sakin bir bekleme (algılanan hızı artırır). */
+    #splash {
+      position: fixed; inset: 0; z-index: 9999;
+      background: #000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity .35s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        sans-serif;
+    }
+    #splash.hide { opacity: 0; pointer-events: none; }
+    #splash .mark {
+      width: 96px; height: 96px;
+      display: flex; align-items: center; justify-content: center;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    #splash .mark img {
+      width: 100%; height: 100%; object-fit: contain;
+    }
+    #splash .word {
+      margin-top: 18px; color: #FFFFFF;
+      font-size: 22px; font-weight: 600; letter-spacing: -1px;
+    }
+    #splash .bar {
+      margin-top: 22px; width: 120px; height: 3px;
+      background: #1A1A1A; border-radius: 2px; overflow: hidden;
+    }
+    #splash .bar::after {
+      content: ""; display: block; height: 100%; width: 40%;
+      background: #C9A572; border-radius: 2px;
+      animation: slide 1.1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .65; transform: scale(.96); }
+    }
+    @keyframes slide {
+      0% { transform: translateX(-110%); }
+      100% { transform: translateX(330%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="splash">
+    <div class="mark"><img src="logo.png" alt="Portly"></div>
+    <div class="word">Portly</div>
+    <div class="bar"></div>
+  </div>
+  <script>
+    // Flutter ilk kareyi çizince splash'i kaldır (DOM'a flutter-view /
+    // flt-glass-pane eklenince). Güvenlik için zaman aşımı fallback'i de var.
+    (function () {
+      var removed = false;
+      function hide() {
+        if (removed) return;
+        removed = true;
+        var s = document.getElementById('splash');
+        if (!s) return;
+        s.classList.add('hide');
+        setTimeout(function () { s && s.remove(); }, 400);
+      }
+      var obs = new MutationObserver(function () {
+        if (document.querySelector('flutter-view, flt-glass-pane, flt-scene-host')) {
+          hide();
+          obs.disconnect();
+        }
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+      // İçerik boyandıktan kısa süre sonra (ya da en geç 12sn) kaldır.
+      window.addEventListener('flutter-first-frame', hide);
+      setTimeout(hide, 12000);
+    })();
+  </script>
+  <script>
+    // Eski service worker / cache bayat bundle servis ediyor olabilir.
+    // Hepsini sil; varsa TEK SEFER zorla yenile → bir sonraki yükleme
+    // SW'siz ve taze gelir (kendi kendini iyileştirir).
+    (function () {
+      function boot() {
+        var s = document.createElement('script');
+        s.src = 'flutter_bootstrap.js';
+        s.async = true;
+        document.body.appendChild(s);
+      }
+      (async function () {
+        var had = false;
+        try {
+          if ('serviceWorker' in navigator) {
+            var rs = await navigator.serviceWorker.getRegistrations();
+            if (rs.length) {
+              had = true;
+              await Promise.all(rs.map(function (r) { return r.unregister(); }));
+            }
+          }
+          if (window.caches && caches.keys) {
+            var ks = await caches.keys();
+            if (ks.length) {
+              had = true;
+              await Promise.all(ks.map(function (k) { return caches.delete(k); }));
+            }
+          }
+        } catch (e) {}
+        if (had && !sessionStorage.getItem('_purged')) {
+          sessionStorage.setItem('_purged', '1');
+          location.reload();
+          return; // bu turda Flutter'ı başlatma
+        }
+        boot();
+      })();
+    })();
+  </script>
+</body>
+</html>

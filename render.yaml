@@ -1,0 +1,142 @@
+# Render Blueprint — repo'yu Render'da "New Blueprint" ile bağlayınca
+# bu dosya servisleri otomatik konfigüre eder.
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: portly-app-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Production işareti — Render değil, kendi kod tarafımız okuyor
+      - key: PORTLY_ENV
+        value: production
+      # CORS — virgülle ayrılmış origin'ler. '*' HERKESE açar (başka bir
+      # site bu API'yi kendi sayfasından çağırabilir, ücretsiz katman
+      # kotasını o tüketir) → frontend adresine kilitli.
+      # Yerelden prod backend'e bağlanman gerekirse Render'da
+      # ALLOWED_ORIGIN_REGEX ekle: ^http://(localhost|127\.0\.0\.1)(:\d+)?$
+      - key: ALLOWED_ORIGINS
+        value: "https://portly-app.onrender.com"
+      # Aşağıdakileri Render dashboard'da MANUEL gir (gizli):
+      # DATABASE_URL  → Neon'dan al (postgresql+psycopg://...)
+      # SECRET_KEY    → backend/.env'deki yeni anahtar
+      # GEMINI_API_KEY, NEWS_API_KEY, GROQ_API_KEY
+      # BREVO_API_KEY → şifre sıfırlama maili (SMTP burada BLOKLU, Brevo şart)
+      # FINNHUB_API_KEY → hisse temel/bilanço (Yahoo quoteSummary Render IP'de BLOKLU)
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NEWS_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      # Hisse temel verisi (F/K, ROE, bilanço). finnhub.io ücretsiz key, ABD hisseleri.
+      - key: FINNHUB_API_KEY
+        sync: false
+      # Render giden SMTP'yi (587) bloklar → mail HTTPS API ile Brevo'dan gider.
+      - key: BREVO_API_KEY
+        sync: false
+      # Yahoo çıkış-IP çözümü (ücretsiz): Cloudflare Worker vekil kökü.
+      # Boş bırakılırsa Yahoo'ya doğrudan gidilir (bugünkü davranış, 429 riski).
+      # Kurulum: infra/cloudflare-worker/README.md
+      - key: YAHOO_PROXY_BASE
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: SMTP_FROM_NAME
+        value: Portly
+      # Paylaşılan cache (app/core/cache.py). Set DEĞİLSE süreç-içi dict'e
+      # düşer; ücretsiz katman 15 dk boştan sonra uyuduğu için cache her
+      # uyanışta sıfırlanır → uygulama tüm fiyat/geçmiş verisini baştan
+      # çeker → Yahoo IP'yi 429'lar. Redis ile cache restart'a dayanır.
+      - key: REDIS_URL
+        fromService:
+          name: portly-app-cache
+          type: keyvalue
+          property: connectionString
+
+  # Fiyat/geçmiş cache'i. Ücretsiz plan 25 MB — sadece cache tutuyoruz,
+  # kalıcı veri Postgres'te. ipAllowList boş = yalnız Render iç ağı.
+  - type: keyvalue
+    name: portly-app-cache
+    plan: free
+    region: frankfurt
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+  # Flutter web PWA — iOS Safari'den "Ana Ekrana Ekle" ile kurulur.
+  # Build command Flutter SDK'yı geçici indirir (Render runner'ında yok),
+  # web build üretir, build/web/ klasörünü statik serve eder.
+  # NOT: static site spec'inde plan/region YOK — Render her zaman CDN ücretsiz.
+  - type: web
+    name: portly-app
+    runtime: static
+    buildCommand: |
+      set -e
+      FLUTTER_VERSION="3.41.9"
+      curl -sSL "https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz" -o /tmp/flutter.tar.xz
+      tar -xJf /tmp/flutter.tar.xz -C $HOME
+      export PATH="$HOME/flutter/bin:$PATH"
+      flutter config --no-analytics
+      # .env pubspec'te asset olarak listede; .gitignore'da olduğu için
+      # Render clone'unda yok. Build-time prod URL ile oluştur.
+      cat > .env <<EOF
+      API_BASE_URL_PROD=https://portly-app-api.onrender.com/api/v1
+      API_BASE_URL_LOCAL=https://portly-app-api.onrender.com/api/v1
+      API_BASE_URL_ANDROID=https://portly-app-api.onrender.com/api/v1
+      API_BASE_URL_NETWORK=https://portly-app-api.onrender.com/api/v1
+      USE_PROD_API=true
+      EOF
+      flutter pub get
+      # Flutter 3.29+ artık sadece CanvasKit/skwasm — --web-renderer kaldırıldı
+      # (3.41.9'da status 64 = invalid argument). pwa-strategy=none kalıyor
+      # (SW olmadan deploy başına kullanıcı taze JS'i alır; eski SW cache
+      # derdi kalmaz).
+      #
+      # --no-tree-shake-icons KALDIRILDI (açılış hızı): bayrak TÜM Material
+      # ikon glifini pakete koyuyordu (~1,6 MB font) — "ikon eksik gelmesin"
+      # gerekçesi kodda karşılığı OLMAYAN bir önlemdi: tree-shaker yalnız
+      # `IconData` NESNESİ RUNTIME'DA üretiliyorsa (const olmayan) yanılır,
+      # bu kod tabanında öyle bir kullanım YOK (grep ile doğrulandı) →
+      # ikon seti sabit, budama güvenli, font ~34 KB'a iniyor.
+      flutter build web --release --pwa-strategy=none
+    staticPublishPath: ./build/web
+    # SPA: tüm path'ler index.html'e (Flutter router client-side)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # Önbellek başlıkları — ilk açılış sonrası HER açılışın maliyetini belirler.
+    # Render'ın varsayılanı `max-age=0` idi: tarayıcı hiçbir şeyi saklamıyor,
+    # her açılışta main.dart.js (1,1 MB br) + canvaskit + font için ağ turu
+    # atılıyordu. Flutter web çıktısında dosya adları hash'li DEĞİL → uzun
+    # önbellek yalnız içeriği deploy'dan deploy'a değişmeyen dosyalara verilir:
+    #   - canvaskit/*  → sürüm klasörüne bağlı motor dosyaları (değişmez)
+    #   - assets/*     → font/görsel (deploy'da değişirse index.html de değişir)
+    # Kod dosyaları (main.dart.js, flutter_bootstrap.js) ve index.html
+    # `no-cache` + ETag ile kalır: deploy anında kullanıcı ESKİ JS'e takılmaz,
+    # değişmediyse 304 (gövde inmez).
+    headers:
+      - path: /canvaskit/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=86400
+      - path: /icons/*
+        name: Cache-Control
+        value: public, max-age=604800
+      - path: /*.js
+        name: Cache-Control
+        value: public, no-cache
+      - path: /index.html
+        name: Cache-Control
+        value: public, no-cache

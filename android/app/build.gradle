@@ -1,0 +1,48 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace = "com.portly.app"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        // Play Store'a çıkarken bir daha DEĞİŞTİRİLEMEZ (uygulamanın kalıcı
+        // kimliği). Şablonun "com.example.*" değeri Play tarafından reddedilir.
+        applicationId = "com.portly.app"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            // ⚠️ HÂLÂ DEBUG ANAHTARIYLA İMZALANIYOR — bu APK yan yüklemede
+            // (kendi telefonuna kurmakta) çalışır, Play Store'a YÜKLENEMEZ.
+            // Mağaza için: `keytool` ile bir keystore üret, android/key.properties
+            // dosyasına yaz (o dosya .gitignore'da kalmalı, şifre repoya girmez)
+            // ve burada signingConfigs.release'e bağla.
+            signingConfig = signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source = "../.."
+}
