@@ -19,12 +19,15 @@
 // Yönlendirme: AuthGate widget'ı, kimlik doğrulama durumuna göre
 //   LoginScreen veya MainScreen arasında şeffaf geçiş sağlar.
 // ============================================================================
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:portly/providers/auth_provider.dart';
 import 'package:portly/providers/portfolio_provider.dart';
 import 'package:portly/providers/chat_provider.dart';
 import 'package:portly/providers/notes_provider.dart';
+import 'package:portly/services/api_service.dart';
 import 'package:portly/screens/chat_screen.dart';
 import 'package:portly/providers/theme_provider.dart';
 import 'package:portly/theme/app_theme.dart';
@@ -45,6 +48,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
+  // Sunucu uykudaysa kalkması, kullanıcı giriş formunu doldururken başlasın.
+  unawaited(ApiService.wakeServer());
   runApp(
     MultiProvider(
       providers: [

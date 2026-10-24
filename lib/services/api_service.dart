@@ -103,12 +103,36 @@ class ApiService {
     return copy;
   }
 
-  static final http.Client _client = _AuthRetryClient();
+  static http.Client _client = _AuthRetryClient();
 
   /// Testler 401→yenile→tekrarla davranışını sahte bir iç istemciyle sürsün diye.
   @visibleForTesting
   static http.Client retryClientForTest(http.Client inner) =>
       _AuthRetryClient(inner);
+
+  /// Testler uç davranışını (hata → istisna) sahte istemciyle sürsün diye.
+  @visibleForTesting
+  static set clientForTest(http.Client inner) =>
+      _client = _AuthRetryClient(inner);
+
+  /// Uygulama açılır açılmaz sunucuyu uyandırır (sonucu beklenmez).
+  /// Render ücretsiz katman 15 dk boşta kalınca uyuyor, kalkması ~1 dk
+  /// (render.com/docs/free). Uyandırma giriş butonuna basılınca başlıyordu →
+  /// kullanıcı şifreyi yazarken geçen süre boşa gidiyordu. `/health` sunucuda
+  /// "kullanım" sayılmaz (main.py `mark_activity`) → arka plan işçisini ve
+  /// Neon'u uyandırmaz, yalnız süreci kaldırır.
+  static Future<void> wakeServer() async {
+    final root = baseUrl.replaceFirst(RegExp(r'/api/v1/?$'), '');
+    try {
+      await http
+          .get(Uri.parse('$root/health'))
+          .timeout(const Duration(seconds: 90));
+    } catch (e) {
+      // Uyandırma en-iyi-çaba: başarısızsa giriş isteği zaten kendi
+      // uyandırma tekrarını yapıyor (_postAwake).
+      debugPrint('wakeServer: $e');
+    }
+  }
 
   // Release build'lerde KESİN prod URL — .env asset parse'ı APK'da
   // sessizce fail edebiliyor (telefonda "127.0.0.1" fallback'e düşüp
@@ -631,56 +655,52 @@ class ApiService {
     return null;
   }
 
+  /// Hata/zaman aşımında İSTİSNA fırlatır (boş liste DÖNMEZ): boş liste
+  /// "haber yok" diye okunuyordu → uyuyan sunucuda ekran "Haber bulunamadı"
+  /// deyip bir daha denemiyordu. Çağıran "yüklenemedi — tekrar dene" gösterir.
   Future<List<dynamic>> fetchNews({bool force = false, String? query}) async {
-    try {
-      final params = <String>[];
-      if (force) params.add('force=true');
-      if (query != null && query.trim().isNotEmpty) {
-        params.add('query=${Uri.encodeComponent(query.trim())}');
-      }
-      final url = params.isEmpty
-          ? '$baseUrl/news/latest'
-          : '$baseUrl/news/latest?${params.join('&')}';
-      final response = await _client
-          .get(Uri.parse(url), headers: _headers)
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-      return [];
-    } catch (e) {
-      debugPrint('fetchNews hata: $e');
-      return [];
+    final params = <String>[];
+    if (force) params.add('force=true');
+    if (query != null && query.trim().isNotEmpty) {
+      params.add('query=${Uri.encodeComponent(query.trim())}');
     }
+    final url = params.isEmpty
+        ? '$baseUrl/news/latest'
+        : '$baseUrl/news/latest?${params.join('&')}';
+    final response = await _client
+        .get(Uri.parse(url), headers: _headers)
+        // 30 sn, sunucunun uykudan kalkmasına (~1 dk) yetmiyordu.
+        .timeout(const Duration(seconds: 75));
+    if (response.statusCode != 200) {
+      throw http.ClientException(
+          'Haberler alınamadı (HTTP ${response.statusCode})', Uri.parse(url));
+    }
+    return jsonDecode(response.body) as List<dynamic>;
   }
 
   /// Portföyüm/İzleme: çok-sembollü haber TEK istekte (`?q=...&q=...`).
   /// Sunucu sorguları paralel çekip tek batch enrich yapar — eski sembol-başına
-  /// N çağrı (N LLM) gecikmesi biter.
+  /// N çağrı (N LLM) gecikmesi biter. Hatada `fetchNews` gibi istisna fırlatır.
   Future<List<dynamic>> fetchNewsForSymbols(List<String> queries,
       {bool force = false}) async {
     if (queries.isEmpty) return const [];
-    try {
-      final params = [
-        for (final q in queries)
-          if (q.trim().isNotEmpty) 'q=${Uri.encodeComponent(q.trim())}',
-        if (force) 'force=true',
-      ];
-      final url = '$baseUrl/news/for-symbols?${params.join('&')}';
-      final response = await _client
-          .get(Uri.parse(url), headers: _headers)
-          // Uç, sembol başına Google News RSS çekiyor (soğuk cache'te ~10 sn) —
-          // üstüne Render ücretsiz katmanın uyanması binince 30 sn sınırı
-          // İSTEMCİDE doluyordu: haber gelmiş olsa bile ekran BOŞ kalıyordu.
-          .timeout(const Duration(seconds: 45));
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-      return [];
-    } catch (e) {
-      debugPrint('fetchNewsForSymbols hata: $e');
-      return [];
+    final params = [
+      for (final q in queries)
+        if (q.trim().isNotEmpty) 'q=${Uri.encodeComponent(q.trim())}',
+      if (force) 'force=true',
+    ];
+    final url = '$baseUrl/news/for-symbols?${params.join('&')}';
+    final response = await _client
+        .get(Uri.parse(url), headers: _headers)
+        // Uç, sembol başına Google News RSS çekiyor: 36 sembollü portföyde
+        // canlıda 18 sn, force ile 30 sn ölçüldü (24 Eki). Üstüne sunucunun
+        // uykudan kalkması (~1 dk) binince 45 sn sınırı İSTEMCİDE doluyordu.
+        .timeout(const Duration(seconds: 90));
+    if (response.statusCode != 200) {
+      throw http.ClientException(
+          'Haberler alınamadı (HTTP ${response.statusCode})', Uri.parse(url));
     }
+    return jsonDecode(response.body) as List<dynamic>;
   }
 
   // ============== PORTFÖY KAYITLARI ==============

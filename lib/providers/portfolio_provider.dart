@@ -652,6 +652,9 @@ class PortfolioProvider extends ChangeNotifier {
       _newsError = null;
     } catch (e) {
       _newsError = 'Haberler yüklenemedi';
+      // Sekmeye bir sonraki gelişte yeniden denensin; kalırsa uyuyan
+      // sunucuya denk gelen ilk deneme sekmeyi oturum boyunca boş bırakır.
+      _newsLoadStarted = false;
       _setError('Haberler yüklenemedi: $e');
     }
     _isNewsLoading = false;
