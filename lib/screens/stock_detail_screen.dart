@@ -136,7 +136,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final target = widget.stockData.symbol.toUpperCase();
     final shortCode = target.replaceAll('.IS', '').replaceAll('-USD', '');
     final query = SymbolDisplay.newsQuery(target);
-    final targetedNews = await _apiService.fetchNews(query: query);
+    List<dynamic> targetedNews;
+    try {
+      targetedNews = await _apiService.fetchNews(query: query);
+    } catch (e) {
+      // Detay ekranında haber ikincil: çekilemezse bölüm boş kalır.
+      debugPrint('İlgili haber alınamadı ($target): $e');
+      targetedNews = const [];
+    }
 
     bool isRelated(dynamic news) {
       final assets = (news['affected_assets'] as List?) ?? const [];
