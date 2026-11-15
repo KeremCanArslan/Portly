@@ -783,6 +783,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     // diye basmak kullanıcıya "hiç değişmemiş" der — oysa VERİ YOK.
     // KALICI KURAL: veri yoksa sıfır gösterme, "—" göster.
     final priceLive = holding['price_available'] as bool? ?? true;
+    // Kaynak fiyat yayımlamayı bırakmışsa (fon tasfiyesi) son fiyat aylar
+    // öncesine ait olabilir → satır tarihiyle uyarır (TLY, Kas 2026).
+    final staleDate = holding['price_stale'] == true
+        ? (holding['price_date'] as String?)
+        : null;
     final isProfit = pnlPercent >= 0;
     final dataColor =
         priceLive ? (isProfit ? c.positive : c.negative) : c.textMuted;
@@ -857,13 +862,25 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                       const SizedBox(height: 3),
                       Text(
                         priceLive
-                            ? '${quantity.toStringAsFixed(0)} adet  ·  Fiyat $curr${formatMoney(currentPrice, decimals: SymbolDisplay.priceDecimals(symbol, currentPrice))}  ·  Maliyet $curr${formatMoney(averageCost, decimals: SymbolDisplay.priceDecimals(symbol, averageCost))}'
-                            : '${quantity.toStringAsFixed(0)} adet  ·  Fiyat —  ·  Maliyet $curr${formatMoney(averageCost, decimals: SymbolDisplay.priceDecimals(symbol, averageCost))}',
+                            ? '${formatQty(quantity, maxDecimals: 6)} adet  ·  Fiyat $curr${formatMoney(currentPrice, decimals: SymbolDisplay.priceDecimals(symbol, currentPrice))}  ·  Maliyet $curr${formatMoney(averageCost, decimals: SymbolDisplay.priceDecimals(symbol, averageCost))}'
+                            : '${formatQty(quantity, maxDecimals: 6)} adet  ·  Fiyat —  ·  Maliyet $curr${formatMoney(averageCost, decimals: SymbolDisplay.priceDecimals(symbol, averageCost))}',
                         style: TextStyle(
                           color: c.textMuted,
                           fontSize: 12,
                         ),
                       ),
+                      if (staleDate != null && staleDate.length >= 10) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          'Fiyat güncellenmiyor · son fiyat '
+                          '${staleDate.substring(8, 10)}.${staleDate.substring(5, 7)}.${staleDate.substring(0, 4)}',
+                          style: TextStyle(
+                            color: c.warmAccent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1075,7 +1092,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   ) {
     showIOSBottomSheet(
       context: context,
-      title: symbol,
+      // Ham Yahoo sembolü ("GC=F") yerine kullanıcı adı ("Altın").
+      title: SymbolDisplay.label(symbol),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(
@@ -1089,7 +1107,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               return Row(
                 children: [
                   Text(
-                    '${quantity.toStringAsFixed(0)} adet',
+                    '${formatQty(quantity, maxDecimals: 6)} adet',
                     style: TextStyle(
                       color: c.textMuted,
                       fontSize: 13,
@@ -1126,8 +1144,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   onTap: () {
                     Navigator.pop(context);
                     final prompt =
-                        '$symbol pozisyonum hakkında detaylı yorum yapar mısın? '
-                        'Şu an ${quantity.toStringAsFixed(0)} lotum var, ortalama maliyet ₺${formatMoney(avgCost)}, '
+                        '${SymbolDisplay.label(symbol)} pozisyonum hakkında detaylı yorum yapar mısın? '
+                        'Şu an ${formatQty(quantity, maxDecimals: 6)} adedim var, ortalama maliyet ${SymbolDisplay.currencyOf(symbol)}${formatMoney(avgCost)}, '
                         'getirim ${formatPctSigned(pnlPercent, decimals: 2)}%.';
                     context.read<ChatProvider>().setPendingPrompt(prompt);
                     Navigator.push(

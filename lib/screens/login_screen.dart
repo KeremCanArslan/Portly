@@ -79,21 +79,25 @@ class _LoginScreenState extends State<LoginScreen> {
               right: 12,
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () => tp.toggle(),
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: c.surface,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      tp.isDark
-                          ? Icons.light_mode_outlined
-                          : Icons.dark_mode_outlined,
-                      color: c.textMuted,
-                      size: 19,
+                child: Semantics(
+                  button: true,
+                  label: 'Tema',
+                  child: GestureDetector(
+                    onTap: () => tp.toggle(),
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        tp.isDark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                        color: c.textMuted,
+                        size: 19,
+                      ),
                     ),
                   ),
                 ),
@@ -178,6 +182,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: c.textSubtle,
                                 size: 19,
                               ),
+                              tooltip: _obscurePassword
+                                  ? 'Şifreyi göster'
+                                  : 'Şifreyi gizle',
                               onPressed: () => setState(
                                   () => _obscurePassword = !_obscurePassword),
                             ),

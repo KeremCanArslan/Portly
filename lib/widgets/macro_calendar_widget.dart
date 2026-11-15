@@ -69,12 +69,29 @@ class _MacroCalendarWidgetState extends State<MacroCalendarWidget> {
       case 'CHN':
         return '🇨🇳';
       case 'DE':
+      case 'DEU': // backend ISO-3 kod gönderiyor (TUR/USA gibi)
       case 'GER':
         return '🇩🇪';
+      case 'FR':
+      case 'FRA':
+        return '🇫🇷';
+      case 'IT':
+      case 'ITA':
+        return '🇮🇹';
+      case 'CA':
+      case 'CAN':
+        return '🇨🇦';
+      case 'CH':
+      case 'CHE':
+        return '🇨🇭';
+      case 'AU':
+      case 'AUS':
+        return '🇦🇺';
       case 'JP':
       case 'JPN':
         return '🇯🇵';
       case 'GB':
+      case 'GBR':
       case 'UK':
         return '🇬🇧';
       default:

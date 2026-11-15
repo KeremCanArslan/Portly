@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:portly/utils/money.dart';
 import 'package:portly/providers/auth_provider.dart';
 import 'package:portly/providers/portfolio_provider.dart';
 import 'package:portly/providers/theme_provider.dart';
@@ -64,7 +65,7 @@ class ProfileScreen extends StatelessWidget {
                         alignment: Alignment.center,
                         child: Text(
                           name.isNotEmpty
-                              ? name.substring(0, 1).toUpperCase()
+                              ? upperTr(name.substring(0, 1))
                               : '?',
                           style: TextStyle(
                             color: c.textPrimary,

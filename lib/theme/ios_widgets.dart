@@ -310,7 +310,7 @@ class IOSSectionHeader extends StatelessWidget {
     return Padding(
       padding: padding,
       child: Text(
-        label.toUpperCase(),
+        upperTr(label),
         style: TextStyle(
           color: c.textMuted,
           fontSize: 12,

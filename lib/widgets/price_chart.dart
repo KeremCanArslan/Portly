@@ -1589,6 +1589,10 @@ class _PriceChartState extends State<PriceChart> {
                             child: CustomPaint(
                               size: Size(c.maxWidth, widget.height),
                               painter: _ChartPainter(
+                                legendOffset: widget.symbolLabel != null ||
+                                        widget.timeframeLabel != null
+                                    ? 26
+                                    : 0,
                                 data: widget.data,
                                 type: _type,
                                 active: _active.toList(),
@@ -2399,6 +2403,9 @@ class _ChartPainter extends CustomPainter {
   final (int, double)? pendStart;
   final Color accentColor;
   final bool logScale;
+  // Sol-üst köşe etiketi ("AAPL · Günlük") OHLC lejantının üstüne biniyordu →
+  // etiket varken lejant bu kadar aşağı kayar.
+  final double legendOffset;
   final double priceScale;
   final double priceOffset;
   final _ChartGeo geo;
@@ -2419,6 +2426,7 @@ class _ChartPainter extends CustomPainter {
   static const double _gap = 10;
 
   _ChartPainter({
+    this.legendOffset = 0,
     required this.data,
     required this.type,
     required this.active,
@@ -2653,7 +2661,7 @@ class _ChartPainter extends CustomPainter {
 
     // ── Kalıcı OHLC lejantı (hover yokken son bar) — TradingView üst satırı ──
     if (hoverIndex == null) {
-      _drawOhlcLegend(canvas, chartLeft, pricePanel.top);
+      _drawOhlcLegend(canvas, chartLeft, pricePanel.top + legendOffset);
     }
 
     // ── RSI paneli ──
@@ -2945,6 +2953,15 @@ class _ChartPainter extends CustomPainter {
       double left, double y, double w) {
     const count = 5;
     final n = visData.length;
+    if (n == 0) return;
+    // Görünen aralık ~10 aydan uzunsa gün yerine ay + yıl yazılır.
+    final firstD = DateTime.tryParse(
+        ((visData.first['date'] as String?) ?? '').split(' ').first);
+    final lastD = DateTime.tryParse(
+        ((visData.last['date'] as String?) ?? '').split(' ').first);
+    final longSpan = firstD != null &&
+        lastD != null &&
+        lastD.difference(firstD).inDays > 300;
     for (int i = 0; i <= count; i++) {
       final idx = ((n - 1) * (i / count)).round().clamp(0, n - 1);
       final dateStr = (visData[idx]['date'] as String?) ?? '';
@@ -2952,7 +2969,7 @@ class _ChartPainter extends CustomPainter {
       if (dateStr.length >= 16 && dateStr.contains(' ')) {
         label = '${dateStr.substring(8, 10)} ${dateStr.substring(11, 16)}';
       } else if (dateStr.length >= 10) {
-        label = dateStr.substring(5);
+        label = _axisDay(dateStr, longSpan);
       } else {
         label = dateStr;
       }
@@ -2960,6 +2977,21 @@ class _ChartPainter extends CustomPainter {
       _drawText(canvas, label, Offset(x, y + 4),
           align: TextAlign.center, color: axisColor, fontSize: 9);
     }
+  }
+
+  static const _trMonths = [
+    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
+  ];
+
+  /// "2026-11-16" → "16 Kas" (uzun aralıkta "Kas 26").
+  String _axisDay(String iso, bool longSpan) {
+    final m = int.tryParse(iso.substring(5, 7));
+    if (m == null || m < 1 || m > 12) return iso.substring(5);
+    final mon = _trMonths[m - 1];
+    return longSpan
+        ? '$mon ${iso.substring(2, 4)}'
+        : '${int.tryParse(iso.substring(8, 10)) ?? iso.substring(8, 10)} $mon';
   }
 
   void _drawLine(Canvas canvas, List<_Candle> ohlc, double minY, double maxY,
@@ -3668,7 +3700,7 @@ class _ChartPainter extends CustomPainter {
       final rr = risk == 0 ? 0.0 : reward / risk;
       _drawText(
           canvas,
-          'R:R ${rr.toStringAsFixed(2)}  ·  +${_fmtPrice(reward)} / -${_fmtPrice(risk)}',
+          'R:R ${formatPct(rr, decimals: 2)}  ·  +${_fmtPrice(reward)} / -${_fmtPrice(risk)}',
           Offset(lo + 4, math.min(ty, sy) - 13),
           color: accentColor,
           fontSize: 10);
@@ -3717,9 +3749,9 @@ class _ChartPainter extends CustomPainter {
   }
 
   String _fmtPrice(double v) {
-    if (v.abs() >= 1000) return v.toStringAsFixed(0);
-    if (v.abs() >= 10) return v.toStringAsFixed(2);
-    return v.toStringAsFixed(3);
+    if (v.abs() >= 1000) return formatMoney(v, decimals: 0);
+    if (v.abs() >= 10) return formatMoney(v);
+    return formatMoney(v, decimals: 3);
   }
 
   void _drawText(Canvas canvas, String text, Offset pos,

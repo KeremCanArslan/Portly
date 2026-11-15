@@ -200,7 +200,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               size: 13, color: col),
           const SizedBox(width: 4),
           Text(
-            '$label  $_currency${q.extendedPrice!.toStringAsFixed(2)}',
+            '$label  $_currency${formatMoney(q.extendedPrice!)}',
             style: TextStyle(
                 color: c.textMuted, fontSize: 13, letterSpacing: -0.1),
           ),
@@ -341,9 +341,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
                         SymbolDisplay.isPhysical(symbol)
-                            ? 'Portföyünde ${held.toStringAsFixed(held == held.roundToDouble() ? 0 : 2)} '
+                            ? 'Portföyünde ${formatQty(held, maxDecimals: 2)} '
                                 '${SymbolDisplay.physicalUnit(symbol)}'
-                            : 'Portföyünde ${held.toStringAsFixed(0)} lot',
+                            : 'Portföyünde ${formatQty(held, maxDecimals: 6)} adet',
                         style: TextStyle(
                           color: c.textMuted,
                           fontSize: 13,
@@ -397,7 +397,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             icon: Icons.remove_circle_outline,
                             title: 'Satış Kaydet',
                             subtitle:
-                                'Sattığın lotu defterden düş (${held.toStringAsFixed(0)} lot var)',
+                                'Sattığın adedi defterden düş (${formatQty(held, maxDecimals: 6)} adet var)',
                             onTap: () =>
                                 _showSellRecordSheet(context, symbol, held),
                           ),
@@ -531,7 +531,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 icon: Icons.add,
                 title: 'Not Ekle',
                 subtitle: notes.isEmpty
-                    ? 'Bu hisse için ilk gözlemini yaz'
+                    ? 'Bu varlık için ilk gözlemini yaz'
                     : 'Yeni gözlem ekle',
                 onTap: () => showNoteEditor(context, lockedSymbol: symbol),
               ),
@@ -678,7 +678,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               borderRadius: BorderRadius.circular(5),
             ),
             child: Text(
-              score.toStringAsFixed(2),
+              formatPct(score, decimals: 2),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
@@ -786,7 +786,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   // Sanal emir DEĞİL: kullanıcının gerçekte yaptığı satışı deftere işler
   // (pozisyon azalır, işlem geçmişine SATIŞ kaydı düşer).
   void _showSellRecordSheet(BuildContext context, String symbol, double held) {
-    final qtyCtrl = TextEditingController(text: held.toStringAsFixed(0));
+    // Kesirli adet (2,53) tam sayıya yuvarlanınca "3" yazıyor ve kayıt
+    // "en fazla" kontrolüne takılıyordu → tam adet, Türkçe virgülle.
+    final heldText = formatQty(held, maxDecimals: 6);
+    final qtyCtrl = TextEditingController(text: heldText);
     // Kayıt uçuşta: buton dönüyor, sheet AÇIK kalıyor. Eskiden sheet istek
     // gönderilmeden ÖNCE kapanıyordu → Render uykudan kalkarken kullanıcı
     // 40+ saniye hiçbir geri bildirim görmeden bekliyordu, sonuç en sonda
@@ -845,7 +848,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     ),
                     GestureDetector(
                       onTap: () => setSt(() {
-                        qtyCtrl.text = held.toStringAsFixed(0);
+                        qtyCtrl.text = heldText;
                       }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -876,14 +879,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                 qtyCtrl.text.trim().replaceAll(',', '.')) ??
                             0;
                         if (qty <= 0) {
-                          showAppSnackBar(sheetCtx, 'Geçerli bir lot gir',
+                          showAppSnackBar(sheetCtx, 'Geçerli bir adet gir',
                               isError: true);
                           return;
                         }
-                        if (qty > held) {
+                        // 6 basamağa yuvarlanan adet eldekini 1e-6'dan az
+                        // aşabilir; backend de aynı payı tanıyor.
+                        if (qty > held + 1e-6) {
                           showAppSnackBar(
                               sheetCtx,
-                              'En fazla ${held.toStringAsFixed(0)} lot '
+                              'En fazla $heldText adet '
                               'kaydedebilirsin',
                               isError: true);
                           return;
@@ -904,7 +909,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         showAppSnackBar(
                           context,
                           result.success
-                              ? '${formatQty(qty)} lot ${SymbolDisplay.compact(symbol)} satışı kaydedildi'
+                              ? '${formatQty(qty, maxDecimals: 6)} adet ${SymbolDisplay.compact(symbol)} satışı kaydedildi'
                               : result.message,
                           isError: !result.success,
                         );
@@ -933,10 +938,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             final c = AppColorsExt.of(ctx);
             final pred = data['prediction'] as Map<String, dynamic>;
             final indicators = data['indicators'] as Map<String, dynamic>;
-            final direction = pred['direction'] as String? ?? 'NEUTRAL';
-            final confidence = (pred['confidence'] as num?)?.toDouble() ?? 0;
-            final target = (pred['target_price'] as num?)?.toDouble() ?? 0;
-            final sl = (pred['stop_loss'] as num?)?.toDouble() ?? 0;
+            // Backend yönle çelişen hedef/stop'u ve AI yanıtı alınamadığında
+            // tahmini null döner → uydurma 0/NÖTR yerine "—" / "Veri yetersiz".
+            final direction = pred['direction'] as String?;
+            final confidence = (pred['confidence'] as num?)?.toDouble();
+            final target = (pred['target_price'] as num?)?.toDouble();
+            final sl = (pred['stop_loss'] as num?)?.toDouble();
+            final rr = (pred['risk_reward'] as num?)?.toDouble();
             final summary = pred['summary'] as String? ?? '';
             final signals =
                 (pred['key_signals'] as List?)?.cast<String>() ?? [];
@@ -949,26 +957,45 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 ? 'YÜKSELİŞ'
                 : direction == 'BEARISH'
                     ? 'DÜŞÜŞ'
-                    : 'NÖTR';
+                    : direction == null
+                        ? 'Veri yetersiz'
+                        : 'NÖTR';
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
               children: [
                 IOSVerdictBanner(
                   verdict: dirTr,
-                  sub: 'AI teknik yön tahmini',
+                  sub: direction == null
+                      ? 'AI yanıtı alınamadı; tahmin verilmedi'
+                      : 'AI teknik yön tahmini',
                   color: dataColor,
                   icon: direction == 'BULLISH'
                       ? Icons.trending_up_rounded
                       : direction == 'BEARISH'
                           ? Icons.trending_down_rounded
-                          : Icons.trending_flat_rounded,
+                          : direction == null
+                              ? Icons.info_outline_rounded
+                              : Icons.trending_flat_rounded,
                   stats: [
-                    ('Güven', '%${confidence.toStringAsFixed(0)}'),
-                    ('Hedef', '$_currency${formatMoney(target)}'),
-                    ('Stop', '$_currency${formatMoney(sl)}'),
+                    ('Güven',
+                        confidence == null ? '—' : '%${confidence.toStringAsFixed(0)}'),
+                    ('Hedef',
+                        target == null ? '—' : '$_currency${formatMoney(target)}'),
+                    ('Stop', sl == null ? '—' : '$_currency${formatMoney(sl)}'),
                   ],
                 ),
+                if (rr != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Risk/getiri 1 : ${formatPct(rr, decimals: 1)}'
+                    '${rr < 1 ? ' · olası kazanç, olası kayıptan küçük' : ''}',
+                    style: TextStyle(
+                      color: rr < 1 ? c.negative : c.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
                 if (summary.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _accentCard(context, 'AI YORUMU', summary, dataColor),
@@ -1001,7 +1028,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     Expanded(
                       child: IOSStatTile(
                           label: 'RSI(14)',
-                          value: '${indicators['rsi14']}',
+                          value: _fnum(indicators['rsi14'], d: 1),
                           onTap: () => _showRatioInfo(
                               context, 'rsi', _asd(indicators['rsi14']))),
                     ),
@@ -1009,7 +1036,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     Expanded(
                       child: IOSStatTile(
                           label: '30g Vol.',
-                          value: '%${indicators['volatility_30d_pct']}',
+                          value: _fpct(indicators['volatility_30d_pct'], d: 1),
                           onTap: () => _showRatioInfo(context, 'vol',
                               _asd(indicators['volatility_30d_pct']))),
                     ),
@@ -1021,7 +1048,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     Expanded(
                       child: IOSStatTile(
                           label: 'SMA20',
-                          value: '${indicators['sma20']}',
+                          value: _fnum(indicators['sma20']),
                           onTap: () => _showRatioInfo(
                               context, 'sma', _asd(indicators['sma20']))),
                     ),
@@ -1029,7 +1056,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     Expanded(
                       child: IOSStatTile(
                           label: 'SMA50',
-                          value: '${indicators['sma50']}',
+                          value: _fnum(indicators['sma50']),
                           onTap: () => _showRatioInfo(
                               context, 'sma', _asd(indicators['sma50']))),
                     ),
@@ -1063,12 +1090,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             final c = AppColorsExt.of(ctx);
             final analysis = data['analysis'] as Map<String, dynamic>;
             final fund = data['fundamentals'] as Map<String, dynamic>;
-            final rec = (analysis['recommendation'] ?? 'TUT').toString();
+            // Oran verisi yokken / AI yanıtı alınamadığında backend skor ve
+            // tavsiyeyi null döner → uydurma "TUT 50" yerine "Veri yetersiz".
+            final rec = analysis['recommendation']?.toString();
             final recColor = rec == 'AL'
                 ? c.positive
                 : rec == 'SAT'
                     ? c.negative
                     : c.textSubtle;
+            final scoreRows = [
+              ('Değerleme', analysis['valuation_score']),
+              ('Büyüme', analysis['growth_score']),
+              ('Finansal Sağlık', analysis['health_score']),
+            ].where((r) => r.$2 is num).toList();
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
@@ -1086,51 +1120,53 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      '${fund['sector']} · ${fund['industry'] ?? ''}',
+                      // Sektör ve alt sektör aynıysa ("Technology · Technology")
+                      // ya da alt sektör yoksa tek yazılır.
+                      {fund['sector'], fund['industry']}
+                          .whereType<String>()
+                          .where((x) => x.trim().isNotEmpty)
+                          .join(' · '),
                       style: TextStyle(color: c.textMuted, fontSize: 12),
                     ),
                   ),
                 const SizedBox(height: 16),
                 IOSVerdictBanner(
-                  verdict: rec,
-                  sub: 'AI temel analiz tavsiyesi',
+                  verdict: rec ?? 'Veri yetersiz',
+                  sub: rec != null
+                      ? 'AI temel analiz tavsiyesi'
+                      : fund['data_limited'] == true
+                          ? 'Güncel finansal oran verisi alınamadı; puan ve tavsiye verilmedi'
+                          : 'AI yanıtı alınamadı; puan ve tavsiye verilmedi',
                   color: recColor,
                   icon: rec == 'AL'
                       ? Icons.trending_up_rounded
                       : rec == 'SAT'
                           ? Icons.trending_down_rounded
-                          : Icons.trending_flat_rounded,
+                          : rec == null
+                              ? Icons.info_outline_rounded
+                              : Icons.trending_flat_rounded,
                 ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(14),
+                if (scoreRows.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        for (int i = 0; i < scoreRows.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 14),
+                          IOSScoreBar(
+                            label: scoreRows[i].$1,
+                            score: (scoreRows[i].$2 as num).toDouble(),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      IOSScoreBar(
-                        label: 'Değerleme',
-                        score:
-                            (analysis['valuation_score'] as num?)?.toDouble() ??
-                                50,
-                      ),
-                      const SizedBox(height: 14),
-                      IOSScoreBar(
-                        label: 'Büyüme',
-                        score: (analysis['growth_score'] as num?)?.toDouble() ??
-                            50,
-                      ),
-                      const SizedBox(height: 14),
-                      IOSScoreBar(
-                        label: 'Finansal Sağlık',
-                        score: (analysis['health_score'] as num?)?.toDouble() ??
-                            50,
-                      ),
-                    ],
-                  ),
-                ),
+                ],
                 if (analysis['summary'] != null) ...[
                   const SizedBox(height: 14),
                   Container(
@@ -1231,13 +1267,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final analysis = (data['analysis'] as Map).cast<String, dynamic>();
     final ov = (data['overview'] as Map?)?.cast<String, dynamic>() ?? {};
     final assetClass = (data['asset_class'] ?? '').toString();
-    final rec = (analysis['recommendation'] ?? 'TUT').toString();
+    final rec = analysis['recommendation']?.toString();
     final recColor = rec == 'AL'
         ? c.positive
         : rec == 'SAT'
             ? c.negative
             : c.textSubtle;
-    final scores = (analysis['scores'] as List?) ?? const [];
+    // AI yanıtı alınamadığında skorlar null gelir → çubuk gösterilmez.
+    final scores = ((analysis['scores'] as List?) ?? const [])
+        .where((s) => s is Map && s['score'] is num)
+        .toList();
     final pfx = (ov['currency_prefix'] ?? '').toString();
     final name =
         (ov['display_name'] ?? SymbolDisplay.compact(symbol)).toString();
@@ -1269,14 +1308,18 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         ),
         const SizedBox(height: 16),
         IOSVerdictBanner(
-          verdict: rec,
-          sub: recSub,
+          verdict: rec ?? 'Veri yetersiz',
+          sub: rec != null
+              ? recSub
+              : 'AI yanıtı alınamadı; puan ve tavsiye verilmedi',
           color: recColor,
           icon: rec == 'AL'
               ? Icons.trending_up_rounded
               : rec == 'SAT'
                   ? Icons.trending_down_rounded
-                  : Icons.trending_flat_rounded,
+                  : rec == null
+                      ? Icons.info_outline_rounded
+                      : Icons.trending_flat_rounded,
         ),
         if (scores.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -1292,7 +1335,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   if (i > 0) const SizedBox(height: 14),
                   IOSScoreBar(
                     label: (scores[i]['label'] ?? '').toString(),
-                    score: (scores[i]['score'] as num?)?.toDouble() ?? 50,
+                    score: (scores[i]['score'] as num).toDouble(),
                   ),
                 ],
               ],
@@ -1376,10 +1419,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     if (v == null) return '—';
     final d = (v as num).toDouble();
     final a = d.abs();
-    if (a >= 1e12) return '${(d / 1e12).toStringAsFixed(2)}T';
-    if (a >= 1e9) return '${(d / 1e9).toStringAsFixed(2)}Mr';
-    if (a >= 1e6) return '${(d / 1e6).toStringAsFixed(2)}Mn';
-    if (a >= 1e3) return '${(d / 1e3).toStringAsFixed(1)}B';
+    if (a >= 1e12) return '${formatPct(d / 1e12)}T';
+    if (a >= 1e9) return '${formatPct(d / 1e9)}Mr';
+    if (a >= 1e6) return '${formatPct(d / 1e6)}Mn';
+    if (a >= 1e3) return '${formatPct(d / 1e3, decimals: 1)}B';
     return formatMoney(d, decimals: 0);
   }
 
@@ -2080,7 +2123,7 @@ class _FinancialsSectionState extends State<_FinancialsSection> {
                 const SizedBox(height: 2),
                 Text(
                   'Net $net'
-                  '${margin != null ? '  ·  %${margin.toStringAsFixed(1)} marj' : ''}',
+                  '${margin != null ? '  ·  %${formatPct(margin, decimals: 1)} marj' : ''}',
                   style: TextStyle(color: c.textMuted, fontSize: 11),
                 ),
               ],
@@ -2728,7 +2771,7 @@ class _FinancialsSectionState extends State<_FinancialsSection> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 6),
-          child: Text(title.toUpperCase(),
+          child: Text(upperTr(title),
               style: TextStyle(
                   color: c.textMuted,
                   fontSize: 11,
