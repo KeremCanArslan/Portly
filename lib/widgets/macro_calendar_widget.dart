@@ -54,6 +54,21 @@ class _MacroCalendarWidgetState extends State<MacroCalendarWidget> {
     }
   }
 
+  static const _trDays = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+  static const _trMonths = [
+    'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
+    'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
+  ];
+
+  /// "2026-11-17" + "16:30" → "17 Kas Sal · 16:30"; saat yoksa yalnız gün.
+  String _when(String date, String time) {
+    final d = DateTime.tryParse(date);
+    final day = d == null
+        ? date
+        : '${d.day} ${_trMonths[d.month - 1]} ${_trDays[d.weekday - 1]}';
+    return time.isEmpty ? day : '$day · $time';
+  }
+
   String _flagFor(String country) {
     switch (country.toUpperCase()) {
       case 'TUR':
@@ -115,6 +130,12 @@ class _MacroCalendarWidgetState extends State<MacroCalendarWidget> {
       );
     }
     if (_events == null || _events!.isEmpty) return const SizedBox.shrink();
+    final shown = _events!.take(6).cast<Map<String, dynamic>>().toList();
+    final sources = shown
+        .map((e) => e['source'])
+        .whereType<String>()
+        .where((s) => s.isNotEmpty)
+        .toSet();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -146,8 +167,7 @@ class _MacroCalendarWidgetState extends State<MacroCalendarWidget> {
             ],
           ),
           const SizedBox(height: 12),
-          ..._events!.take(6).map((e) {
-            final ev = e as Map<String, dynamic>;
+          ...shown.map((ev) {
             final title = ev['title'] as String? ?? '';
             final date = ev['date'] as String? ?? '';
             final time = ev['time'] as String? ?? '';
@@ -180,7 +200,7 @@ class _MacroCalendarWidgetState extends State<MacroCalendarWidget> {
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: -0.1)),
                         const SizedBox(height: 3),
-                        Text('$date · $time',
+                        Text(_when(date, time),
                             style: TextStyle(
                               color: c.textSubtle,
                               fontSize: 10,
@@ -214,6 +234,9 @@ class _MacroCalendarWidgetState extends State<MacroCalendarWidget> {
               ),
             );
           }),
+          if (sources.isNotEmpty)
+            Text('Kaynak: ${sources.join(', ')} · saatler TR saatiyle',
+                style: TextStyle(color: c.textSubtle, fontSize: 10)),
         ],
       ),
     );
