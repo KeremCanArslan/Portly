@@ -312,3 +312,26 @@ def test_gocu_yalnizca_fon_kodlarini_tasir(monkeypatch):
         assert sorted(r[0] for r in
                       conn.execute(sa.text("SELECT symbol FROM portfolios"))) == [
             "AAPL", "LTL.IS", "THYAO.IS", "TLY.IS", "URA"]
+
+
+# ── Bayat fiyat: kaynak fiyat yayımlamayı bırakınca ─────────────────────────
+# Canlıda (16 Kas 2026) TLY'nin TEFAS fiyatı 17 Eyl'den beri 0 geliyordu; 0'lar
+# atlandığı için ekranda Eylül fiyatı "güncel" gibi duruyordu, uyarı yoktu.
+def test_fiyati_uzun_suredir_yayimlanmayan_fon_bayat_isaretlenir(monkeypatch):
+    from datetime import date
+    _use_series(monkeypatch, {"2026-09-15": 9.0, "2026-09-16": 9.5})
+    monkeypatch.setattr(fss, "_today", lambda: date(2026, 11, 16))
+    quote = fss.get_quotes(["TLY.FON"])["TLY.FON"]
+    assert quote["price_date"] == "2026-09-16"
+    assert quote["price_stale"] is True
+    assert quote["change_available"] is False   # Eylül değişimi "bugün" değil
+
+
+def test_bayram_tatili_bayat_sayilmaz(monkeypatch):
+    """9 günlük bayram tatilinde TEFAS fiyat açıklamaz → yanlış alarm olmasın."""
+    from datetime import date
+    _use_series(monkeypatch, {"2026-11-05": 9.0, "2026-11-06": 9.5})
+    monkeypatch.setattr(fss, "_today", lambda: date(2026, 11, 16))
+    quote = fss.get_quotes(["TLY.FON"])["TLY.FON"]
+    assert quote["price_stale"] is False
+    assert quote.get("change_available", True) is True

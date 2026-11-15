@@ -193,3 +193,22 @@ def test_change_unavailable_when_price_missing(db, make_user, monkeypatch):
     assert len(rows) == 1
     assert rows[0]["price_available"] is False
     assert rows[0]["change_available"] is False
+
+
+def test_stale_price_flag_reaches_position(db, make_user, monkeypatch):
+    """Kaynağın 'bayat' bayrağı ve fiyat tarihi pozisyona ve ŞEMAYA ulaşır
+    (yoksa response_model siler, ekran uyaramaz)."""
+    from app.schemas.portfolio_schema import PortfolioItemResponse
+
+    user = make_user()
+    _add_position(db, user, "TLY.FON", 98, 10.0)
+    monkeypatch.setattr(portfolio_service, "get_stock_prices", lambda symbols: {
+        "TLY.FON": {"symbol": "TLY.FON", "current_price": 9.5,
+                    "change_percent": 5.0, "change_available": False,
+                    "price_date": "2026-09-16", "price_stale": True}})
+
+    row = portfolio_service.get_user_portfolio(db, user.id)[0]
+    assert row["price_stale"] is True
+    assert row["price_date"] == "2026-09-16"
+    assert row["change_available"] is False
+    assert {"price_stale", "price_date"} <= set(PortfolioItemResponse.model_fields)

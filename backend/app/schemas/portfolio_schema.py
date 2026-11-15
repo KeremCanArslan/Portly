@@ -34,3 +34,7 @@ class PortfolioItemResponse(BaseModel):
     # dünkü kapanışı vermez → change_percent 0.0 kalır). ŞEMADA OLMAZSA
     # response_model SİLER → ekran uydurma "Bugün +%0,00" basar.
     change_available: bool = True
+    # Son fiyat kaynakta uzun süredir güncellenmiyor mu (fon tasfiyesi)?
+    # price_date: son açıklanan fiyatın günü (ISO), yalnız fonlarda dolu.
+    price_stale: bool = False
+    price_date: str | None = None

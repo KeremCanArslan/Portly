@@ -29,6 +29,7 @@
 # sinyal tarafı fonu `data_limited` olarak işaretler.
 # =============================================================================
 import time
+from datetime import date
 
 import httpx
 from loguru import logger
@@ -53,6 +54,10 @@ _PERIYOD_3Y = 36             # ucun kabul ettiği sabit kod (serbest aralık YOK
 _FRESH_SECONDS = 3 * 3600
 _STALE_SECONDS = 5 * 24 * 3600
 _KEY = "fund:nav:"
+# Son açıklanan fiyat bundan eskiyse fon fiyat yayımlamayı bırakmış sayılır
+# (tasfiye/kapanış; canlıda TLY 17 Eyl 2026'dan beri 0 döndü). 9 günlük bayram
+# tatili + hafta sonu yanlış alarm vermesin diye 10 takvim günü.
+_STALE_PRICE_DAYS = 10
 
 _blocked_until: float = 0.0
 
@@ -192,6 +197,10 @@ def _window(series: dict[str, float], days: int) -> list[str]:
     return [d for d in ordered if d >= cutoff]
 
 
+def _today() -> date:
+    return date.today()
+
+
 def get_quotes(symbols: list[str]) -> dict[str, dict]:
     """{SEMBOL: {symbol, company_name, current_price, change_percent}}.
 
@@ -205,12 +214,17 @@ def get_quotes(symbols: list[str]) -> dict[str, dict]:
         current = series[days[-1]]
         prev = series[days[-2]] if len(days) >= 2 else current
         change = ((current - prev) / prev * 100) if prev else 0.0
+        stale = (_today() - date.fromisoformat(days[-1])).days > _STALE_PRICE_DAYS
         out[sym] = {
             "symbol": sym,
             "company_name": fund_catalog.name_of(sym) or sym,
             "current_price": round(current, 6),
             "change_percent": round(change, 2),
+            "price_date": days[-1],
+            "price_stale": stale,
         }
+        if stale:  # aylar önceki son değişim "bugün" diye gösterilmez
+            out[sym]["change_available"] = False
     return out
 
 

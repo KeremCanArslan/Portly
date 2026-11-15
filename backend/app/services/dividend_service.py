@@ -257,13 +257,19 @@ def _symbol_dividends(symbol: str) -> dict | None:
         except Exception:
             pass
 
+        # Son ödeme periyodun 1,5 katından eskiyse şirket ödemeyi kesmiş
+        # sayılır → tarih UYDURULMAZ (canlıda 2005'te son ödeyen ZOREN için
+        # 2027 tahmini görünüyordu). Takvimde gerçek tarih varsa o geçerli.
+        lapsed = (now_ts - idx[-1]).days > interval_days * 1.5
+        next_ex = cal_future or (None if lapsed else projected)
+
         return {
             "symbol": symbol,
             "has_dividend": True,
             "last_amount": round(last_amt, 4),
             "last_date": last_date,
             "ttm_per_share": round(ttm, 4),
-            "next_ex_date": cal_future or projected,
+            "next_ex_date": next_ex,
             "next_ex_estimated": cal_future is None,
         }
     except Exception as exc:
