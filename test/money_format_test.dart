@@ -49,6 +49,16 @@ void main() {
     });
   });
 
+  group('upperTr — Türkçe büyük harf (i → İ, ı → I)', () {
+    test('noktalı i büyük İ olur', () {
+      expect(upperTr('Profil & Geçmiş'), 'PROFİL & GEÇMİŞ');
+      expect(upperTr('Teknik Analiz'), 'TEKNİK ANALİZ');
+    });
+    test('noktasız ı büyük I olur', () {
+      expect(upperTr('Sınırlı'), 'SINIRLI');
+    });
+  });
+
   group('formatPctSigned — kazançta +, zararda −', () {
     test('pozitif/sıfır → + öneki', () {
       expect(formatPctSigned(1.7), '+1,70');

@@ -56,8 +56,8 @@ class MissionsScreen extends StatelessWidget {
   static List<_Mission> _missions(BuildContext c) => [
         _Mission(
           id: 'first_buy',
-          title: 'İlk Alımını Yap',
-          description: 'Trade sekmesinden herhangi bir hisse al',
+          title: 'İlk Pozisyonunu Ekle',
+          description: 'Portföy sekmesinden herhangi bir varlık ekle',
           icon: Icons.shopping_cart,
           reward: 50,
           check: (ctx) => ctx.read<PortfolioProvider>().myHoldings.isNotEmpty,

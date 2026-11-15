@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:portly/utils/money.dart';
 import 'package:portly/theme/app_theme.dart';
 import 'package:portly/theme/ios_widgets.dart';
 
@@ -1671,7 +1672,7 @@ class _EducationScreenState extends State<EducationScreen> {
       anyMatch = true;
       out.add(Padding(
         padding: const EdgeInsets.fromLTRB(4, 22, 4, 8),
-        child: _MiniHeader(cat.name.toUpperCase(), cat.icon),
+        child: _MiniHeader(upperTr(cat.name), cat.icon),
       ));
       out.add(IOSGroupedCard(
         children: lessons

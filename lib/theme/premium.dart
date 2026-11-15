@@ -15,6 +15,7 @@
 //   • Cömert boşluk, net tipografik hiyerarşi, yumuşak geçişler.
 // ============================================================================
 import 'package:flutter/material.dart';
+import 'package:portly/utils/money.dart';
 import 'package:portly/theme/app_theme.dart';
 
 /// 4'lük tabana oturan boşluk ölçeği — tutarlı ritim için.
@@ -108,7 +109,7 @@ class EliteSectionLabel extends StatelessWidget {
         children: [
           Expanded(
             child: Text(
-              text.toUpperCase(),
+              upperTr(text),
               style: TextStyle(
                 color: c.textSubtle,
                 fontSize: 11,

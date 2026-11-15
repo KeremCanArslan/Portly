@@ -935,7 +935,7 @@ class _DividendScreenState extends State<DividendScreen> {
 
     showIOSBottomSheet(
       context: context,
-      title: sym,
+      title: SymbolDisplay.compact(sym),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         child: Column(

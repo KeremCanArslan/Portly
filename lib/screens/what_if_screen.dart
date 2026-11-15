@@ -316,8 +316,8 @@ class _WhatIfScreenState extends State<WhatIfScreen> {
                   const SizedBox(height: 16),
                   Text(
                       _dcaMode
-                          ? 'Kaç yıldır: ${_yearsBack.toStringAsFixed(1)} yıl'
-                          : 'Kaç yıl önce: ${_yearsBack.toStringAsFixed(1)} yıl',
+                          ? 'Kaç yıldır: ${formatPct(_yearsBack, decimals: 1)} yıl'
+                          : 'Kaç yıl önce: ${formatPct(_yearsBack, decimals: 1)} yıl',
                       style: TextStyle(
                           color: c.textMuted,
                           fontSize: 13,
@@ -334,7 +334,7 @@ class _WhatIfScreenState extends State<WhatIfScreen> {
                       min: 0.5,
                       max: 10,
                       divisions: 19,
-                      label: '${_yearsBack.toStringAsFixed(1)} yıl',
+                      label: '${formatPct(_yearsBack, decimals: 1)} yıl',
                       onChanged: (v) => setState(() => _yearsBack = v),
                     ),
                   ),
@@ -411,7 +411,7 @@ class _WhatIfScreenState extends State<WhatIfScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${years.toStringAsFixed(1)} yıl önce yatırım yapsaydın',
+          Text('${formatPct(years, decimals: 1)} yıl önce yatırım yapsaydın',
               style: TextStyle(
                   color: c.textMuted, fontSize: 13, letterSpacing: -0.1)),
           const SizedBox(height: 8),
@@ -456,7 +456,7 @@ class _WhatIfScreenState extends State<WhatIfScreen> {
           const SizedBox(height: 16),
           _kv('Yıllık ortalama (CAGR)',
               '${formatPctSigned(cagr, decimals: 2)}%'),
-          _kv('Alacağın adet', '${qty.toStringAsFixed(4)} lot'),
+          _kv('Alacağın adet', '${formatQty(qty)} adet'),
           _kv('Başlangıç ($startDate)', '$currency${formatMoney(startPrice)}'),
           _kv(
               _endDate == null
@@ -553,7 +553,7 @@ class _WhatIfScreenState extends State<WhatIfScreen> {
           ),
           const SizedBox(height: 16),
           _kv('Ortalama maliyet', '$currency${formatMoney(avgCost)}'),
-          _kv('Biriken adet', '${qty.toStringAsFixed(4)} lot'),
+          _kv('Biriken adet', '${formatQty(qty)} adet'),
           _kv(
               _endDate == null
                   ? 'Bugünkü fiyat'

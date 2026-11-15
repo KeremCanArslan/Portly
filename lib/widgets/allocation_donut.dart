@@ -243,12 +243,6 @@ class _AllocationDonutState extends State<AllocationDonut> {
     );
   }
 
-  /// Türkçe duyarlı büyük harf. Dart'ın `toUpperCase()`'i locale bilmez:
-  /// "Diğer" → "DIĞER" (noktasız I) çıkar. Sektör adları Türkçe → i/ı ayrımı
-  /// elle yapılır.
-  static String _upperTr(String s) =>
-      s.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
-
   /// Alt kırılımı olan dilimlerde merkezde gösterilen ipucu ("12 varlık ›").
   /// Yalnız o dilim seçiliyken görünür; başka hiçbir yeri değiştirmez.
   Widget _drillHint(AppColorsExt c, String label) {
@@ -277,7 +271,7 @@ class _AllocationDonutState extends State<AllocationDonut> {
         key: ValueKey(inside ? 'drill$_drill' : 'total'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(inside ? '\u2039 ${_upperTr(_drill!)}' : 'TOPLAM',
+          Text(inside ? '\u2039 ${upperTr(_drill!)}' : 'TOPLAM',
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

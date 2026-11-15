@@ -207,7 +207,8 @@ class _TaQuizScreenState extends State<TaQuizScreen> {
           // Sembol gizli (showing) / açık (revealed)
           Text(
             revealed
-                ? '${SymbolDisplay.compact(symbol)} · ${SymbolDisplay.label(symbol)}'
+                ? {SymbolDisplay.compact(symbol), SymbolDisplay.label(symbol)}
+                    .join(' · ') // ikisi aynıysa ("THY · THY") tek yazılır
                 : 'Sembol gizli · ${_assetCategory(symbol)}',
             style: TextStyle(
                 color: c.textPrimary,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:portly/utils/money.dart';
 import 'package:portly/providers/portfolio_provider.dart';
 import 'package:portly/services/api_service.dart';
 import 'package:portly/providers/chat_provider.dart';
@@ -171,7 +172,7 @@ class _BehaviorScreenState extends State<BehaviorScreen> {
           description:
               'Kayıp acısı eşdeğer kazanç sevincinin ~2 katıdır. Yüksek skor zarardaki pozisyonu uzun süre tutmayı gösterir.',
           metric:
-              'Kazançta tutuş: ${la['avg_gain_holding_days']}g  ·  Zararda tutuş: ${la['avg_loss_holding_days']}g',
+              'Kazançta tutuş: ${_num(la['avg_gain_holding_days'], 1)} gün  ·  Zararda tutuş: ${_num(la['avg_loss_holding_days'], 1)} gün',
         ),
         const SizedBox(height: 12),
         _buildBiasCard(
@@ -183,7 +184,7 @@ class _BehaviorScreenState extends State<BehaviorScreen> {
           description:
               'Aşırı güven yüksek işlem sıklığına yol açar. Çalışma: aşırı işlem yapan yatırımcılar uzun vadede %6 daha az getiri elde ediyor.',
           metric:
-              'Günlük sıklık: ${oc['trades_per_day']}  ·  Toplam işlem: ${oc['total_trades']}',
+              'Günlük sıklık: ${_num(oc['trades_per_day'], 2)}  ·  Toplam işlem: ${oc['total_trades']}',
         ),
         const SizedBox(height: 20),
         _buildCoachCta(persona, de, oc, la),
@@ -261,6 +262,10 @@ class _BehaviorScreenState extends State<BehaviorScreen> {
 
   /// Bias kartı — skor barı + seviye rozeti + metrik + bottom sheet'e link.
   /// Önyargılarda DÜŞÜK = sağlıklı, YÜKSEK = dikkat → renk buna göre.
+  /// Backend sayısı → Türkçe ondalık ("1.303" değil "1,30"); yoksa "—".
+  String _num(dynamic v, int decimals) =>
+      v is num ? formatPct(v.toDouble(), decimals: decimals) : '—';
+
   Widget _buildBiasCard({
     required String title,
     required String academic,
@@ -316,7 +321,7 @@ class _BehaviorScreenState extends State<BehaviorScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(score.toStringAsFixed(2),
+                  Text(formatPct(score, decimals: 2),
                       style: TextStyle(
                         color: c.textPrimary,
                         fontSize: 22,

@@ -37,6 +37,11 @@ String formatQty(num q, {int maxDecimals = 4}) {
   return s.replaceAll('.', ',');
 }
 
+/// Türkçe duyarlı büyük harf. Dart'ın `toUpperCase()`'i locale bilmez:
+/// "Profil" → "PROFIL" (noktasız I) çıkar. i/ı ayrımı elle yapılır.
+String upperTr(String s) =>
+    s.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+
 /// İşaretli yüzde: kazançta '+', zararda '−'. "+1,70" / "−5,17".
 String formatPctSigned(double v, {int decimals = 2}) {
   final s = formatPct(v, decimals: decimals);

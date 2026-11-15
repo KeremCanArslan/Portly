@@ -212,10 +212,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
     return b.toString();
   }
 
-  String _qty(num q) {
-    if (q == q.roundToDouble()) return q.toStringAsFixed(0);
-    return q.toStringAsFixed(q < 1 ? 4 : 2);
-  }
+  String _qty(num q) => formatQty(q, maxDecimals: q < 1 ? 4 : 2);
 
   // ── Hero: tek bakışta cevap ─────────────────────────────────────────
   Widget _hero(Map<String, dynamic> r) {
@@ -252,7 +249,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text((r['scenario_name'] as String).toUpperCase(),
+              Text(upperTr(r['scenario_name'] as String),
                   style: TextStyle(
                       color: c.warmAccent,
                       fontSize: 11,
@@ -323,7 +320,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
     } else if (recovery >= 12) {
       final y = recovery / 12.0;
       recoveryText =
-          'Tarihsel ortalama büyümeyle ~${y.toStringAsFixed(y >= 10 ? 0 : 1)} yıl.';
+          'Tarihsel ortalama büyümeyle ~${formatPct(y, decimals: y >= 10 ? 0 : 1)} yıl.';
     } else {
       recoveryText = 'Tarihsel ortalama büyümeyle ~$recovery ay.';
     }
@@ -395,7 +392,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500)),
                               ),
-                              Text('${chg.toStringAsFixed(1)}%  ·  −₺${_f(loss)}',
+                              Text('%${formatPct(chg, decimals: 1)}  ·  −₺${_f(loss)}',
                                   style: TextStyle(
                                       color: c.negative,
                                       fontSize: 13,
@@ -624,11 +621,17 @@ class _StressTestScreenState extends State<StressTestScreen> {
       how = 'Oynaklık %${vol.toStringAsFixed(0)}/yıl';
     }
 
+    // Birim fiyat küçük olabilir ($0,80 → $0,45): tam sayıya yuvarlanınca
+    // "$1 → $0" yazıyordu. Değer satırı tam sayı kalır.
+    String amount(double x, bool whole) => whole
+        ? _f(x)
+        : formatMoney(x,
+            decimals: SymbolDisplay.priceDecimals(h['symbol'] as String? ?? '', x));
     Widget pair(String label, double a, double b, bool bold) => Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: TextStyle(color: c.textMuted, fontSize: 11.5)),
-            Text('$cs${_f(a)} → $cs${_f(b)}',
+            Text('$cs${amount(a, bold)} → $cs${amount(b, bold)}',
                 style: TextStyle(
                   color: c.textPrimary,
                   fontSize: bold ? 14 : 12.5,
@@ -749,7 +752,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
                       )),
                   TextSpan(
                       text:
-                          '\'ye kadar düşebilir — yani ₺${_f(var95)} (%${pct.abs().toStringAsFixed(1)}) kaybedersin. '),
+                          '\'ye kadar düşebilir — yani ₺${_f(var95)} (%${formatPct(pct.abs(), decimals: 1)}) kaybedersin. '),
                   const TextSpan(
                       text: 'Benzer 100 durumun 95\'inde kaybın bundan daha azdır; bu, en olumsuz uçtaki sonuçtur.'),
                 ],
@@ -828,7 +831,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
             ],
             const SizedBox(height: 10),
             _note(
-                'Oynaklık, fiyatın ne kadar sert savrulduğudur. Portföyün sakin dönemde yılda ~%${annual.toStringAsFixed(1)} oynar; kriz dönemlerinde fiyatlar çok daha sert hareket ettiği için bu, senaryonun şiddetine göre ~%${applied.toStringAsFixed(0)}\'a genişletildi. Bu genişletilmiş oynaklıkla 10.000 olası gidişat simüle edilip (Monte Carlo) en kötü/en iyi %5 uçları belirsizlik bandı olarak alındı.'),
+                'Oynaklık, fiyatın ne kadar sert savrulduğudur. Portföyün sakin dönemde yılda ~%${formatPct(annual, decimals: 1)} oynar; kriz dönemlerinde fiyatlar çok daha sert hareket ettiği için bu, senaryonun şiddetine göre ~%${applied.toStringAsFixed(0)}\'a genişletildi. Bu genişletilmiş oynaklıkla 10.000 olası gidişat simüle edilip (Monte Carlo) en kötü/en iyi %5 uçları belirsizlik bandı olarak alındı.'),
             const SizedBox(height: 10),
             _note(
                 'Bu bir tahmindir, garanti değildir; geçmiş performans geleceği garanti etmez.'),
