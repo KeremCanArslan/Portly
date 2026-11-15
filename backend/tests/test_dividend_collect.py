@@ -201,3 +201,16 @@ def test_duzenli_odeyen_hisseye_tahmin_surer(monkeypatch):
     info = dividend_service._symbol_dividends("LMT")
     assert info["next_ex_date"] is not None
     assert info["next_ex_estimated"] is True
+
+
+def test_son_bir_yilda_odeyen_hisse_duzensiz_olsa_da_tahmin_surer(monkeypatch):
+    """URA: yarı yıllık görünen ama son ödemesi 321 gün önce olan hisse son
+    12 ayda ödediği için 'kesmiş' sayılmaz (canlıda tarihi boş kalmıştı)."""
+    now = datetime.now(timezone.utc)
+    rows = [((now - timedelta(days=d)).strftime("%Y-%m-%d"), 1.0)
+            for d in (321 + 182 * 3, 321 + 182 * 2, 321 + 182, 321)]
+    monkeypatch.setattr(dividend_service, "_dividends_raw",
+                        lambda s: (_div_series(rows), None))
+    info = dividend_service._symbol_dividends("URA")
+    assert info["ttm_per_share"] > 0
+    assert info["next_ex_date"] is not None
