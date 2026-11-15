@@ -178,6 +178,10 @@ def get_user_portfolio(db: Session, user_id: int):
             "change_available": bool(
                 (quotes.get(csym) or {}).get("change_available", True))
             and price_live,
+            # Kaynak fiyat yayımlamayı bırakmışsa (fon tasfiyesi) son fiyat
+            # aylar öncesine ait olabilir → ekran tarihiyle uyarır.
+            "price_stale": bool((quotes.get(csym) or {}).get("price_stale", False)),
+            "price_date": (quotes.get(csym) or {}).get("price_date"),
             "currency": currency,
             **_try_amounts(item, currency, total_value, total_cost),
         })

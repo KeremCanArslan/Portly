@@ -176,3 +176,28 @@ def test_dividend_older_than_one_year_skipped(db, market, make_user, monkeypatch
     res = dividend_service.collect_virtual_dividends(db, user.id)
 
     assert res["credited"] == pytest.approx(0.0)
+
+
+# ── Sıradaki ödeme tahmini: yıllardır ödemeyen hisseye tarih uydurulmaz ────
+# Canlıda (16 Kas 2026) son kâr payını 2005'te veren ZOREN/LEU, 2020'de veren
+# BA "Sıradaki Ödemeler"de 2027 tarihli tahmini ödemeyle görünüyordu.
+def test_uzun_suredir_odemeyen_hisseye_sonraki_tarih_tahmin_edilmez(monkeypatch):
+    now = datetime.now(timezone.utc)
+    rows = [((now - timedelta(days=365 * k + 900)).strftime("%Y-%m-%d"), 1.0)
+            for k in (3, 2, 1)]                       # yıllık, sonuncusu ~2,5 yıl önce
+    monkeypatch.setattr(dividend_service, "_dividends_raw",
+                        lambda s: (_div_series(rows), None))
+    info = dividend_service._symbol_dividends("ZOREN.IS")
+    assert info["has_dividend"] is True
+    assert info["next_ex_date"] is None
+
+
+def test_duzenli_odeyen_hisseye_tahmin_surer(monkeypatch):
+    now = datetime.now(timezone.utc)
+    rows = [((now - timedelta(days=91 * k + 30)).strftime("%Y-%m-%d"), 1.0)
+            for k in (3, 2, 1, 0)]                    # çeyreklik, son ödeme 30 gün önce
+    monkeypatch.setattr(dividend_service, "_dividends_raw",
+                        lambda s: (_div_series(rows), None))
+    info = dividend_service._symbol_dividends("LMT")
+    assert info["next_ex_date"] is not None
+    assert info["next_ex_estimated"] is True
