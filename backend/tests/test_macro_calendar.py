@@ -53,6 +53,7 @@ _TCMB_HTML = """
 
 def _patch(monkeypatch, ff=_FF, tcmb=_TCMB_HTML):
     monkeypatch.setattr(mcs, "_fetch_ff", lambda: ff)
+    monkeypatch.setattr(mcs, "_fetch_ff_mirror", lambda: None)
     monkeypatch.setattr(mcs, "_fetch_tcmb_html", lambda: tcmb)
     monkeypatch.setattr(mcs, "_now", lambda: _NOW)
     monkeypatch.setattr(mcs, "_ff_blocked_until", 0.0)
@@ -191,3 +192,21 @@ def test_429_de_retry_after_boyunca_kaynaga_gidilmez(monkeypatch):
     monkeypatch.setattr(mcs.requests, "get",
                         lambda *a, **k: _Resp(200, data=_FF))
     assert mcs._fetch_ff() == _FF
+
+
+def test_github_kopyasi_once_okunur(monkeypatch):
+    _patch(monkeypatch, tcmb=None)
+    direct = []
+    monkeypatch.setattr(mcs, "_fetch_ff", lambda: direct.append(1) or None)
+    monkeypatch.setattr(mcs, "_fetch_ff_mirror", lambda: _FF)
+    titles = [e["title"] for e in mcs.get_upcoming_events()]
+    assert "ABD TÜFE (aylık)" in titles
+    assert direct == []                      # kopya güncelse kaynağa gidilmez
+
+
+def test_kopya_eskiyse_dogrudan_kaynak_denenir(monkeypatch):
+    old_week = [dict(e, date="2026-11-04T08:30:00-05:00") for e in _FF]
+    _patch(monkeypatch, tcmb=None)
+    monkeypatch.setattr(mcs, "_fetch_ff_mirror", lambda: old_week)
+    titles = [e["title"] for e in mcs.get_upcoming_events()]
+    assert "ABD TÜFE (aylık)" in titles      # _FF doğrudan kaynaktan geldi
