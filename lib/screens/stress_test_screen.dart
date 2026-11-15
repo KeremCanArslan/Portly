@@ -392,7 +392,7 @@ class _StressTestScreenState extends State<StressTestScreen> {
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500)),
                               ),
-                              Text('%${formatPct(chg, decimals: 1)}  ·  −₺${_f(loss)}',
+                              Text('${chg < 0 ? '−' : ''}%${formatPct(chg.abs(), decimals: 1)}  ·  −₺${_f(loss)}',
                                   style: TextStyle(
                                       color: c.negative,
                                       fontSize: 13,
