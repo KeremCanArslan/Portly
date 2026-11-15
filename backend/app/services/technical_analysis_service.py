@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 
 from app.services import llm_service
+from app.utils.symbol_display import compact as display_symbol
 
 _cache: dict[str, tuple[dict, datetime]] = {}
 _CACHE_TTL_MINUTES = 15
@@ -198,7 +199,9 @@ def _compute_indicators(symbol: str, bars: dict | None = None) -> dict:
 
 def _build_prompt(symbol: str, indicators: dict) -> str:
     ind = indicators
-    return f"""{symbol} hissesi için profesyonel teknik analiz yap. Aşağıdaki göstergeleri yorumla.
+    # Ham Yahoo sembolü ("GC=F") verilince LLM yorumda aynen yazıyordu →
+    # kullanıcının gördüğü ad ("Altın", "THYAO").
+    return f"""{display_symbol(symbol)} için profesyonel teknik analiz yap. Aşağıdaki göstergeleri yorumla.
 
 ═══ FİYAT ═══
 Cari fiyat: {ind['current_price']}
@@ -227,7 +230,10 @@ Son 5 gün hacim trendi: %{ind.get('volume_trend_pct')} (pozitif = artan ilgi)
 
 HEDEF/STOP KURALI: Hedef cari fiyattan en az 1 ATR uzakta olmalı; yakın
 direnç/destek bundan yakınsa 3 aylık seviyeyi kullan. Risk/getiri (hedef
-mesafesi / stop mesafesi) 1,5'in altında kalıyorsa yönü NEUTRAL ver.
+mesafesi / stop mesafesi) 1,5'in altında kalıyorsa yönü NEUTRAL ver. Bu kuralı
+yorumda, sinyallerde ya da risklerde anma.
+
+YAZIM: Metinde ondalıkları Türkçe yaz (40,41 · 3.886,3); varlığı adıyla an.
 
 ÇIKTI: Yalnızca geçerli JSON dön, başka metin yok. Detaylı, profesyonel ve dürüst yorum yap:
 

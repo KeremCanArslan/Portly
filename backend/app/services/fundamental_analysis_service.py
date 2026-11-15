@@ -13,6 +13,7 @@ import yfinance as yf
 
 from app.core.yf_session import get_session
 from app.services import llm_service, finnhub_service
+from app.utils.symbol_display import compact as display_symbol
 
 _cache: dict[str, tuple[dict, datetime]] = {}
 _CACHE_TTL_HOURS = 12
@@ -231,7 +232,8 @@ def _build_prompt(symbol: str, f: dict) -> str:
             "konumu ve izlenmesi gereken konular hakkında NİTEL bir özet yaz; "
             "bilmediğin oranı ya da sayıyı UYDURMA.\n"
         )
-    return f"""{symbol} ({f['company_name']}) için profesyonel TEMEL analiz yap.
+    return f"""{display_symbol(symbol)} ({f['company_name']}) için profesyonel TEMEL analiz yap.
+Metinde ondalıkları Türkçe yaz (40,4 · 3.886,3).
 {limited_note}
 
 ═══ ŞIRKET ═══
@@ -473,7 +475,13 @@ def _build_macro_prompt(symbol: str, asset_class: str, ov: dict) -> str:
     if asset_class == "fund" and ov.get("fund_kind"):
         lines.append(f"Fon türü: {ov['fund_kind']}")
     data_block = "\n".join(lines)
-    return f"""{ov.get('display_name')} ({symbol}) için profesyonel analiz yap.
+    # Ham Yahoo sembolü ("GC=F") ve İngilizce vadeli adı ("Gold Dec 26")
+    # verilince LLM yorumda aynen yazıyordu → bilinen sembolde Türkçe ad.
+    name = display_symbol(symbol)
+    if name == symbol:
+        name = ov.get('display_name') or symbol
+    return f"""{name} için profesyonel analiz yap. Metinde varlığı bu adla an,
+ondalıkları Türkçe yaz (40,4 · 3.886,3).
 
 {_CLASS_GUIDE[asset_class]}
 

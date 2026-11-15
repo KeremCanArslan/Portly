@@ -58,3 +58,11 @@ def test_llm_hatasi_uydurma_tahmin_vermez_cache_lenmez(monkeypatch):
     assert pred["target_price"] is None and pred["stop_loss"] is None
     tas.predict("AAPL")
     assert len(calls) == 2
+
+
+# Canlıda (16 Kas) Altın'ın AI yorumu "GC=F varlığı ..." diye başlıyordu:
+# istem ham Yahoo sembolünü veriyordu, LLM de aynen yazıyordu.
+def test_istem_ham_sembol_yerine_ad_verir():
+    prompt = tas._build_prompt("GC=F", dict(_IND))
+    assert "Altın" in prompt
+    assert "GC=F" not in prompt
