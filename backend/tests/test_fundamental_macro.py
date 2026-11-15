@@ -270,3 +270,11 @@ def test_info_calisirsa_devre_kesici_kapanmaz(monkeypatch):
     for _ in range(fa._INFO_FAIL_THRESHOLD + 2):
         fa._compute_fundamentals("AAPL")
     assert fa._info_available()
+
+
+def test_makro_istem_ham_sembol_yerine_ad_verir():
+    """AI yorumunda "GC=F" görünmesin: istem ham sembol yerine ad verir."""
+    ov = dict(_FAKE_OV, display_name="Gold Dec 26")
+    prompt = fa._build_macro_prompt("GC=F", "commodity", ov)
+    assert "Altın" in prompt
+    assert "GC=F" not in prompt
