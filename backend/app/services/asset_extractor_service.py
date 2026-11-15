@@ -94,6 +94,7 @@ _ASSET_KEYWORD_MAP: list[tuple[str, str, str]] = [
     ("altın", "GC=F", "Altın"),
     ("ons altın", "GC=F", "Altın"),
     ("gold price", "GC=F", "Altın"),
+    ("gold prices", "GC=F", "Altın"),
     ("gold rally", "GC=F", "Altın"),
     ("gold futures", "GC=F", "Altın"),
     ("petrol", "CL=F", "Ham Petrol"),
@@ -101,7 +102,13 @@ _ASSET_KEYWORD_MAP: list[tuple[str, str, str]] = [
     ("brent", "CL=F", "Ham Petrol"),
     ("wti", "CL=F", "Ham Petrol"),
     ("opec", "CL=F", "Ham Petrol"),
-    ("silver", "SI=F", "Gümüş"),
+    # Tek başına "silver" yok: "Silver Lake" (fon), "silver lining" Gümüş
+    # sayılıyordu; altındaki gibi fiyat bağlamlı ifadeler.
+    ("gümüş", "SI=F", "Gümüş"),
+    ("silver price", "SI=F", "Gümüş"),
+    ("silver prices", "SI=F", "Gümüş"),
+    ("silver futures", "SI=F", "Gümüş"),
+    ("spot silver", "SI=F", "Gümüş"),
 
     # ─── Endeksler ────────────────────────────────────────────────────
     ("s&p 500", "^GSPC", "S&P 500"),
@@ -121,13 +128,20 @@ _ASSET_KEYWORD_MAP: list[tuple[str, str, str]] = [
 ]
 
 
+# Para birimi adı TUTAR bildiriyorsa ("250 milyon dolar", "12 dolar") haber
+# kurla ilgili değildir; bu kelimeler önünde sayı/çarpan varken eşleşmez.
+_AMOUNT_UNIT_KEYWORDS = {"dolar", "euro"}
+_AMOUNT_PREFIX = r"(?<!\d )(?<!\d)(?<!bin )(?<!milyon )(?<!milyar )(?<!trilyon )"
+
+
 @lru_cache(maxsize=1)
 def _get_compiled_patterns() -> list[tuple[re.Pattern, str, str]]:
     """Regex'leri tek seferlik derler. Word boundary ile false-positive azaltır."""
     compiled = []
     for keyword, symbol, name in _ASSET_KEYWORD_MAP:
+        prefix = _AMOUNT_PREFIX if keyword in _AMOUNT_UNIT_KEYWORDS else ""
         # Word boundary, case-insensitive, unicode (Türkçe karakterler için)
-        pattern = re.compile(rf"\b{re.escape(keyword)}\b", re.IGNORECASE | re.UNICODE)
+        pattern = re.compile(rf"{prefix}\b{re.escape(keyword)}\b", re.IGNORECASE | re.UNICODE)
         compiled.append((pattern, symbol, name))
     return compiled
 
@@ -144,16 +158,16 @@ def extract_affected_assets(text: str, max_results: int = 5) -> list[dict]:
     if not text:
         return []
 
-    seen_symbols: set[str] = set()
-    results: list[dict] = []
+    # sembol → (metindeki ilk konum, gösterim adı)
+    first_seen: dict[str, tuple[int, str]] = {}
 
     for pattern, symbol, name in _get_compiled_patterns():
-        if symbol in seen_symbols:
+        match = pattern.search(text)
+        if match is None:
             continue
-        if pattern.search(text):
-            seen_symbols.add(symbol)
-            results.append({"symbol": symbol, "name": name})
-            if len(results) >= max_results:
-                break
+        prev = first_seen.get(symbol)
+        if prev is None or match.start() < prev[0]:
+            first_seen[symbol] = (match.start(), name)
 
-    return results
+    ordered = sorted(first_seen.items(), key=lambda item: item[1][0])
+    return [{"symbol": symbol, "name": name} for symbol, (_, name) in ordered[:max_results]]

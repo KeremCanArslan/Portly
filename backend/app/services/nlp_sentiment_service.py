@@ -13,6 +13,7 @@ VEYA finans anahtar kelimesi geçiyorsa tutulur → ekonomi feed'lerindeki alaka
 import calendar
 import json
 import logging
+import html
 import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -536,6 +537,27 @@ def _strip_html(s: str) -> str:
     return _TAG_RE.sub("", s or "").strip()
 
 
+def _dedupe_key(title: str) -> str:
+    """Aynı haber iki yayında: Google News başlığı " - Kaynak" ekiyle gelir
+    ("Is Apple Stock a Buy Right Now? - The Motley Fool" / "... - Nasdaq")
+    → ek atılmadan karşılaştırınca ikisi de listeye giriyordu."""
+    return title.rsplit(" - ", 1)[0].strip().lower()
+
+
+def _clean_desc(title: str, raw: str) -> str:
+    """RSS açıklaması → düz metin. Google News açıklaması yalnız
+    "başlık&nbsp;&nbsp;Kaynak"tır: kartta başlığı ikinci kez (ve ham
+    "&nbsp;" ile) gösteriyordu → öyleyse boş döner."""
+    desc = html.unescape(_strip_html(raw)).replace("\xa0", " ")
+    desc = re.sub(r"\s+", " ", desc).strip()
+    base = title.rsplit(" - ", 1)[0].strip()
+    if base and desc.startswith(base):
+        rest = desc[len(base):].strip()
+        if not rest or rest in title:
+            return ""
+    return desc[:500]
+
+
 def _entry_date(entry) -> datetime:
     parsed = entry.get("published_parsed") or entry.get("updated_parsed")
     if parsed:
@@ -632,12 +654,12 @@ def _fetch_google_raw(query: str) -> list[dict]:
     seen: set[str] = set()
     for e in entries[:20]:  # Google ilk 20 yeterli
         title = _strip_html(e.get("title", "")).strip()
-        if not title or title.lower() in seen:
+        if not title or _dedupe_key(title) in seen:
             continue
         if _NOISE_RE.search(title):  # insider filing ("X yetkilisi $Y hisse sattı") vb. → ele
             continue
-        seen.add(title.lower())
-        desc = _strip_html(e.get("summary", e.get("description", "")))[:500]
+        seen.add(_dedupe_key(title))
+        desc = _clean_desc(title, e.get("summary", e.get("description", "")))
         text = f"{title} {desc}"
         sentiment = analyze_sentiment(text)
         out.append({
@@ -743,12 +765,12 @@ def _build_pool() -> list[dict]:
             continue
         if _NOISE_RE.search(title):
             continue
-        key = title.lower()
+        key = _dedupe_key(title)
         if key in seen:
             continue
         seen.add(key)
 
-        desc = _strip_html(e.get("summary", e.get("description", "")))[:500]
+        desc = _clean_desc(title, e.get("summary", e.get("description", "")))
         text = f"{title} {desc}"
         assets = extract_affected_assets(text)
         if not _is_relevant(text, assets):
@@ -857,8 +879,8 @@ def get_financial_news(query: str = "stock market", force_refresh: bool = False)
     google = _get_google_for_query(query, force_refresh, now)
     _, clean_query = _split_region(query)  # terim eşleşmesi öneksiz sorguyla
     if google:
-        seen = {n["title"].lower() for n in google}
-        merged = google + [n for n in pool if n["title"].lower() not in seen]
+        seen = {_dedupe_key(n["title"]) for n in google}
+        merged = google + [n for n in pool if _dedupe_key(n["title"]) not in seen]
         return _filter_for_query(merged, clean_query)
     return _filter_for_query(pool, clean_query)
 
@@ -941,7 +963,7 @@ def _collect_raw_for_symbols(clean: list[str],
         # Bayatı kotadan ÖNCE ele: yoksa sembolün 10'luk payı aylar
         # öncesinin haberleriyle doluyor ve taze haberler dışarıda kalıyor.
         for it in _drop_stale(items)[:_PER_SYMBOL_CAP]:
-            k = it["title"].lower()
+            k = _dedupe_key(it["title"])
             if k and k not in seen:
                 seen.add(k)
                 raw.append(it)
