@@ -17,11 +17,14 @@ gelmez; yerine hiçbir şey UYDURULMAZ.
 
 import html
 import re
+import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
 from loguru import logger
+
+from app.core import cache
 
 _IST = ZoneInfo("Europe/Istanbul")
 _FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
@@ -36,6 +39,16 @@ _cache: dict[str, tuple[list, datetime]] = {}
 _CACHE_TTL = timedelta(hours=3)
 _FAIL_TTL = timedelta(minutes=15)   # kaynak çöktüyse kısa süre sonra yeniden dene
 _FORCE_MIN = timedelta(minutes=5)   # ?force=true kaynağı dakikada bir kez dövmesin
+
+# ForexFactory aynı IP'den kısa sürede 3. istekte 429 + "Retry-After: 300" veriyor
+# (16 Kas ölçümü); Render'ın çıkış IP'si başka kullanıcılarla ortak. 429'da o süre
+# boyunca kaynağa HİÇ gidilmez (cezayı uzatmamak için) ve son başarılı yanıt
+# kullanılır. Akış yalnız içinde bulunulan haftayı taşıdığından eski yanıttaki
+# geçmiş olaylar _upcoming ile zaten düşer → bayat veri gerçek dışı olay üretmez.
+_FF_LAST_KEY = "macro:ff:last"
+_TCMB_LAST_KEY = "macro:tcmb:last"
+_LAST_TTL = 8 * 24 * 3600
+_ff_blocked_until = 0.0
 
 # Para birimi → (ülke kodu, Türkçe önek). Kapsam: portföydeki ABD hisseleri ve
 # küresel risk iştahını en çok oynatan bölgeler.
@@ -159,8 +172,19 @@ def _now() -> datetime:
 
 
 def _fetch_ff() -> list | None:
+    global _ff_blocked_until
+    if time.time() < _ff_blocked_until:
+        return None
     try:
         r = requests.get(_FF_URL, headers=_HEADERS, timeout=_TIMEOUT)
+        if r.status_code == 429:
+            try:
+                wait = int(r.headers.get("Retry-After", "300"))
+            except ValueError:
+                wait = 300
+            _ff_blocked_until = time.time() + max(wait, 60)
+            logger.warning(f"Makro takvim: ForexFactory HTTP 429, {wait} sn beklenecek")
+            return None
         if r.status_code != 200:
             logger.warning(f"Makro takvim: ForexFactory HTTP {r.status_code}")
             return None
@@ -346,6 +370,16 @@ def _pick(events: list[dict], now: datetime) -> list[dict]:
     return sorted(chosen, key=lambda e: (e["date"], e["time"] or "99:99"))
 
 
+def _with_last_good(key: str, fetch):
+    """Kaynağı dener; başarılıysa saklar, değilse son başarılı yanıtı döner."""
+    data = fetch()
+    if data:
+        cache.set(key, data, ttl=_LAST_TTL)
+        return data
+    hit = cache.get(key)
+    return hit[0] if hit else None
+
+
 def get_upcoming_events(force_refresh: bool = False) -> list[dict]:
     now = _now()
     key = now.strftime("%Y-%m-%d")
@@ -356,10 +390,10 @@ def get_upcoming_events(force_refresh: bool = False) -> list[dict]:
             return _pick(data, now)   # cache'teyken saati geçen olay düşer
 
     events: list[dict] = []
-    ff = _fetch_ff()
+    ff = _with_last_good(_FF_LAST_KEY, _fetch_ff)
     if ff:
         events += _ff_events(ff, now)
-    page = _fetch_tcmb_html()
+    page = _with_last_good(_TCMB_LAST_KEY, _fetch_tcmb_html)
     if page:
         events += _tcmb_events(page, now)
 

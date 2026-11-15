@@ -55,7 +55,10 @@ def _patch(monkeypatch, ff=_FF, tcmb=_TCMB_HTML):
     monkeypatch.setattr(mcs, "_fetch_ff", lambda: ff)
     monkeypatch.setattr(mcs, "_fetch_tcmb_html", lambda: tcmb)
     monkeypatch.setattr(mcs, "_now", lambda: _NOW)
+    monkeypatch.setattr(mcs, "_ff_blocked_until", 0.0)
     mcs._cache.clear()
+    mcs.cache.delete(mcs._FF_LAST_KEY)
+    mcs.cache.delete(mcs._TCMB_LAST_KEY)
 
 
 def test_ff_olayi_tr_saatine_cevrilir_ve_suzulur(monkeypatch):
@@ -157,3 +160,34 @@ def test_force_bes_dakikada_bir_kaynaga_gider(monkeypatch):
     monkeypatch.setattr(mcs, "_now", lambda: soon)
     mcs.get_upcoming_events(force_refresh=True)          # 6 dk sonra
     assert len(calls) == 2
+
+
+def test_kaynak_coker_ise_son_basarili_yanit_kullanilir(monkeypatch):
+    _patch(monkeypatch, tcmb=None)
+    assert mcs.get_upcoming_events()                     # FF başarılı → saklandı
+    monkeypatch.setattr(mcs, "_fetch_ff", lambda: None)  # sonra 429 / ağ hatası
+    mcs._cache.clear()
+    titles = [e["title"] for e in mcs.get_upcoming_events()]
+    assert "ABD TÜFE (aylık)" in titles
+
+
+class _Resp:
+    def __init__(self, status, headers=None, data=None):
+        self.status_code, self.headers, self._data = status, headers or {}, data
+
+    def json(self):
+        return self._data
+
+
+def test_429_de_retry_after_boyunca_kaynaga_gidilmez(monkeypatch):
+    calls = []
+    monkeypatch.setattr(mcs, "_ff_blocked_until", 0.0)
+    monkeypatch.setattr(mcs.requests, "get", lambda *a, **k: calls.append(1)
+                        or _Resp(429, {"Retry-After": "300"}))
+    assert mcs._fetch_ff() is None
+    assert mcs._fetch_ff() is None                       # devre açık
+    assert len(calls) == 1
+    monkeypatch.setattr(mcs, "_ff_blocked_until", 0.0)   # süre doldu
+    monkeypatch.setattr(mcs.requests, "get",
+                        lambda *a, **k: _Resp(200, data=_FF))
+    assert mcs._fetch_ff() == _FF
