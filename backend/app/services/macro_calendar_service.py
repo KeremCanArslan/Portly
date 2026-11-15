@@ -28,6 +28,11 @@ from app.core import cache
 
 _IST = ZoneInfo("Europe/Istanbul")
 _FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+# Aynı akışın kopyası: KeremCanArslan/Portly reposundaki GitHub Action
+# (.github/workflows/makro-takvim.yml, main dalı) 3 saatte bir çekip
+# takvim-verisi dalına yazar. Render'ın IP'si 429'lu olduğu için önce bu okunur.
+_FF_MIRROR_URL = ("https://raw.githubusercontent.com/KeremCanArslan/Portly/"
+                  "takvim-verisi/ff_thisweek.json")
 _TCMB_URL = ("https://tcmb.gov.tr/wps/wcm/connect/TR/TCMB%2BTR/Main%2BMenu/"
              "Duyurular/Takvim")
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Portly/1.0)"}
@@ -193,6 +198,38 @@ def _fetch_ff() -> list | None:
     except Exception as exc:
         logger.warning(f"Makro takvim: ForexFactory alınamadı: {exc}")
         return None
+
+
+def _fetch_ff_mirror() -> list | None:
+    try:
+        r = requests.get(_FF_MIRROR_URL, headers=_HEADERS, timeout=_TIMEOUT)
+        if r.status_code != 200:
+            logger.warning(f"Makro takvim: ForexFactory kopyası HTTP {r.status_code}")
+            return None
+        data = r.json()
+        return data if isinstance(data, list) and data else None
+    except Exception as exc:
+        logger.warning(f"Makro takvim: ForexFactory kopyası alınamadı: {exc}")
+        return None
+
+
+def _has_upcoming(raw: list, now: datetime) -> bool:
+    for item in raw:
+        try:
+            if datetime.fromisoformat(item["date"]) >= now:
+                return True
+        except (KeyError, TypeError, ValueError):
+            continue
+    return False
+
+
+def _fetch_ff_best(now: datetime) -> list | None:
+    """Önce GitHub kopyası; yoksa ya da eskimişse (Action durduysa geçen
+    haftada kalır) doğrudan kaynak."""
+    mirror = _fetch_ff_mirror()
+    if mirror and _has_upcoming(mirror, now):
+        return mirror
+    return _fetch_ff() or mirror
 
 
 def _fetch_tcmb_html() -> str | None:
@@ -390,7 +427,7 @@ def get_upcoming_events(force_refresh: bool = False) -> list[dict]:
             return _pick(data, now)   # cache'teyken saati geçen olay düşer
 
     events: list[dict] = []
-    ff = _with_last_good(_FF_LAST_KEY, _fetch_ff)
+    ff = _with_last_good(_FF_LAST_KEY, lambda: _fetch_ff_best(now))
     if ff:
         events += _ff_events(ff, now)
     page = _with_last_good(_TCMB_LAST_KEY, _fetch_tcmb_html)
