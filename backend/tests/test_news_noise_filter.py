@@ -45,3 +45,30 @@ def test_promotional_noise_is_filtered(title):
 ])
 def test_real_news_survives(title):
     assert not _NOISE_RE.search(title), f"gerçek haber elendi: {title}"
+
+
+# ── Google News açıklaması = başlık + "&nbsp;&nbsp;Kaynak" ─────────────────
+# Canlıda (16 Kas 2026) 23 haberin 23'ünde açıklama başlığı tekrar ediyor ve
+# sonunda ham "&nbsp;" görünüyordu.
+def test_basligi_tekrar_eden_aciklama_bosaltilir():
+    from app.services.nlp_sentiment_service import _clean_desc
+    title = "EBSO’dan Apple’a İzmir’de yatırım daveti - Ekonomi Gazetesi"
+    raw = ('<a href="https://news.google.com/x">EBSO’dan Apple’a İzmir’de '
+           'yatırım daveti</a>&nbsp;&nbsp;<font color="#6f6f6f">Ekonomi Gazetesi</font>')
+    assert _clean_desc(title, raw) == ""
+
+
+def test_gercek_aciklama_korunur_ve_entity_cozulur():
+    from app.services.nlp_sentiment_service import _clean_desc
+    desc = _clean_desc("Apple beats estimates - Reuters",
+                       "Revenue rose 8%&nbsp;on iPhone demand &amp; services.")
+    assert desc == "Revenue rose 8% on iPhone demand & services."
+
+
+def test_ayni_haber_iki_kaynaktan_tek_anahtar():
+    from app.services.nlp_sentiment_service import _dedupe_key
+    a = _dedupe_key("Is Apple Stock a Buy Right Now? - The Motley Fool")
+    b = _dedupe_key("Is Apple Stock a Buy Right Now? - Nasdaq")
+    assert a == b
+    # başlığın kendi içindeki tire korunur
+    assert _dedupe_key("S&P 500 - Nasdaq rally - Reuters") == "s&p 500 - nasdaq rally"

@@ -549,7 +549,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
-                      '$sentiment ${score.toStringAsFixed(2)}',
+                      '$sentiment ${formatPct(score, decimals: 2)}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -916,7 +916,16 @@ class _AnalysisChip extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    '$name · $symbol',
+                                    // AI'ın yazdığı şifreli sembol ("GC=F",
+                                    // hatta yanlış "GC=X") kullanıcıya
+                                    // anlamsız → yalnız ad; normal hissede
+                                    // "Apple · AAPL".
+                                    symbol.contains('=') ||
+                                            symbol.startsWith('^') ||
+                                            symbol.isEmpty ||
+                                            name == symbol
+                                        ? name
+                                        : '$name · $symbol',
                                     style: TextStyle(
                                       color: c.textPrimary,
                                       fontSize: 13,
