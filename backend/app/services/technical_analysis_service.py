@@ -225,6 +225,10 @@ Yakın destek (1ay): {ind.get('support_1m')}, uzak destek (3ay): {ind.get('suppo
 ═══ HACİM ═══
 Son 5 gün hacim trendi: %{ind.get('volume_trend_pct')} (pozitif = artan ilgi)
 
+HEDEF/STOP KURALI: Hedef cari fiyattan en az 1 ATR uzakta olmalı; yakın
+direnç/destek bundan yakınsa 3 aylık seviyeyi kullan. Risk/getiri (hedef
+mesafesi / stop mesafesi) 1,5'in altında kalıyorsa yönü NEUTRAL ver.
+
 ÇIKTI: Yalnızca geçerli JSON dön, başka metin yok. Detaylı, profesyonel ve dürüst yorum yap:
 
 {{
@@ -240,6 +244,40 @@ Son 5 gün hacim trendi: %{ind.get('volume_trend_pct')} (pozitif = artan ilgi)
   "risks": ["bu tahmini bozabilecek 2-3 risk maddesi"],
   "summary": "3-4 cümle Türkçe yorum — başlıca sinyaller, hedef, neden, risk"
 }}"""
+
+
+def _as_float(v) -> float | None:
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return x if x == x and x not in (float("inf"), float("-inf")) else None
+
+
+def _check_levels(pred: dict, current: float) -> dict:
+    """LLM'in hedef/stop'u yönle tutarlı mı? Değilse gösterilmez.
+
+    Yükselişte hedef fiyatın üstünde, stop altında; düşüşte tersi olmalı.
+    NÖTR tahminde hedef/stop anlamsız. Risk/getiri = hedef mesafesi / stop
+    mesafesi; ekran bunu gösterir (canlıda hedef = günün yükseği olup
+    risk/getiri 1'in altına düşüyordu ve görünmüyordu)."""
+    direction = pred.get("direction")
+    target = _as_float(pred.get("target_price"))
+    stop = _as_float(pred.get("stop_loss"))
+    if direction == "BULLISH":
+        target_ok = target is not None and target > current
+        stop_ok = stop is not None and 0 < stop < current
+    elif direction == "BEARISH":
+        target_ok = target is not None and 0 < target < current
+        stop_ok = stop is not None and stop > current
+    else:
+        target_ok = stop_ok = False
+    pred["target_price"] = target if target_ok else None
+    pred["stop_loss"] = stop if stop_ok else None
+    pred["risk_reward"] = (
+        round(abs(target - current) / abs(current - stop), 2)
+        if target_ok and stop_ok else None)
+    return pred
 
 
 def predict(symbol: str, force_refresh: bool = False) -> dict:
@@ -271,24 +309,26 @@ def predict(symbol: str, force_refresh: bool = False) -> dict:
             model=llm_service.MODEL_LITE,
         )
         parsed = json.loads(raw)
+        llm_ok = True
     except Exception as exc:
         logger.warning(f"LLM tahmin hatası ({symbol}): {exc}")
-        # Fallback — basit heuristik
+        llm_ok = False
+        # Uydurma "NÖTR %50, hedef = fiyat" yerine boş tahmin; ekran
+        # "Veri yetersiz" gösterir, sonuç cache'lenmez (sonraki istek dener).
         parsed = {
-            "direction": "NEUTRAL",
-            "confidence": 50,
-            "target_price": indicators["current_price"],
-            "stop_loss": indicators["current_price"] * 0.95,
-            "horizon_days": 14,
-            "key_signals": ["AI yanıtı alınamadı"],
-            "summary": "Tahmin üretilemedi.",
+            "direction": None,
+            "confidence": None,
+            "key_signals": [],
+            "summary": "AI yanıtı alınamadı, tahmin üretilemedi. Birazdan tekrar dene.",
         }
 
+    parsed = _check_levels(parsed, indicators["current_price"])
     result = {
         "symbol": symbol,
         "indicators": indicators,
         "prediction": parsed,
         "generated_at": now.isoformat(),
     }
-    _cache[symbol] = (result, now)
+    if llm_ok:
+        _cache[symbol] = (result, now)
     return result

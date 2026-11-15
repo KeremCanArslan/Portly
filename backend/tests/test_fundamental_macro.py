@@ -90,14 +90,24 @@ def test_macro_labels_per_class(monkeypatch):
 
 
 def test_macro_llm_failure_falls_back(monkeypatch):
-    """LLM bozuk JSON → patlamaz, nötr (TUT/50) varsayılan + şema korunur."""
+    """LLM bozuk JSON → patlamaz, şema korunur. Analiz YOK → uydurma TUT/50
+    gösterilmez (16 Kas 2026, Kerem: veri yoksa puan ve AL/SAT yok); hata
+    sonucu cache'lenmez, sonraki istek yeniden dener."""
+    calls = []
     _patch_macro(monkeypatch, llm_out="bozuk-json-değil")
+    monkeypatch.setattr(fa.llm_service, "complete",
+                        lambda *a, **k: calls.append(1) or "bozuk-json-değil")
 
     res = fa.analyze("ETH-USD")
 
     assert res["asset_class"] == "crypto"
-    assert res["analysis"]["recommendation"] == "TUT"
+    assert res["analysis"]["recommendation"] is None
+    assert res["analysis"]["overall_score"] is None
     assert len(res["analysis"]["scores"]) == 3
+    assert all(s["score"] is None for s in res["analysis"]["scores"])
+
+    fa.analyze("ETH-USD")
+    assert len(calls) == 2  # hata cache'lenmedi
 
 
 class _FakeFast:
@@ -153,7 +163,34 @@ def test_blocked_info_falls_back_not_404(monkeypatch):
     assert f["current_price"] == 298.0
     assert f["fifty_two_week_high"] == 317.0
     assert f["pe_trailing"] is None      # oran verisi yok (bloklu)
-    assert res["analysis"]["recommendation"] == "TUT"
+    # Oran verisi yokken LLM'in kendi bilgisinden skor/tavsiye GÖSTERİLMEZ
+    # (16 Kas 2026: THYAO veri yokken "AL 65/75/70" alıyordu).
+    a = res["analysis"]
+    assert a["recommendation"] is None
+    for k in ("overall_score", "valuation_score", "growth_score",
+              "health_score", "fair_value_estimate"):
+        assert a[k] is None, k
+    assert a["summary"] == "x"           # nitel özet korunur
+
+
+def test_stock_llm_failure_no_fake_score_not_cached(monkeypatch):
+    """Hisse: LLM hatası → uydurma TUT/50 yok, sonuç cache'lenmez."""
+    calls = []
+    monkeypatch.setattr(fa, "_compute_fundamentals",
+                        lambda s: {"data_limited": False, "company_name": "Apple",
+                                   "current_price": 200.0})
+    monkeypatch.setattr(fa.llm_service, "available", True)
+    monkeypatch.setattr(fa.llm_service, "complete",
+                        lambda *a, **k: calls.append(1) or "bozuk")
+    fa._cache.clear()
+
+    res = fa.analyze("AAPL")
+
+    a = res["analysis"]
+    assert a["recommendation"] is None
+    assert a["overall_score"] is None and a["valuation_score"] is None
+    fa.analyze("AAPL")
+    assert len(calls) == 2
 
 
 def test_blocked_info_uses_finnhub_not_degraded(monkeypatch):

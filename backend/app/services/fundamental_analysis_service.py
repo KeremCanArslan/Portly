@@ -226,10 +226,10 @@ def _build_prompt(symbol: str, f: dict) -> str:
     if f.get("data_limited"):
         limited_note = (
             "\n⚠️ NOT: Canlı finansal oran verisi (F/K, ROE, marj, büyüme) şu an "
-            "çekilemedi (None). Bu hisse hakkındaki kendi güncel bilginle + "
-            "yukarıdaki GÜNCEL FİYAT çıpasıyla değerlendir. Bilmediğin oranı "
-            "UYDURMA; emin değilsen summary/zayıflıkta 'güncel oran verisi sınırlı' "
-            "diye belirt. Yine de net bir genel değerlendirme + skor + tavsiye ver.\n"
+            "çekilemedi (None). Skor, tavsiye ve gerçeğe uygun değer VERME "
+            "(bu alanları null bırak). Yalnız şirketin iş modeli, sektördeki "
+            "konumu ve izlenmesi gereken konular hakkında NİTEL bir özet yaz; "
+            "bilmediğin oranı ya da sayıyı UYDURMA.\n"
         )
     return f"""{symbol} ({f['company_name']}) için profesyonel TEMEL analiz yap.
 {limited_note}
@@ -497,6 +497,14 @@ Bilgi tarihin güncel olmayabilir; somut sayılar için yukarıdaki güncel veri
 }}"""
 
 
+# Oran verisi yokken ya da LLM yanıtı alınamadığında gösterilmeyecek alanlar:
+# veri yokken LLM'in kendi bilgisinden "AL 65" üretmesi kullanıcıya veriye
+# dayalı bir hüküm gibi görünüyordu (16 Kas 2026, THYAO). İstemci None'ı
+# "Veri yetersiz" olarak gösterir.
+_STOCK_VERDICT_KEYS = ("recommendation", "overall_score", "valuation_score",
+                       "growth_score", "health_score", "fair_value_estimate")
+
+
 def _analyze_macro(symbol: str, asset_class: str, now: datetime) -> dict:
     ov = _overview(symbol, asset_class)
     if ov.get("current_price") is None:
@@ -514,32 +522,34 @@ def _analyze_macro(symbol: str, asset_class: str, now: datetime) -> dict:
             model=llm_service.MODEL_LITE,
         )
         parsed = json.loads(raw)
+        llm_ok = True
     except Exception as exc:
         logger.warning(f"Macro LLM hata ({symbol}): {exc}")
+        llm_ok = False
         parsed = {
-            "recommendation": "TUT",
-            "overall_score": 50,
-            "primary_score": 50,
-            "momentum_score": 50,
-            "stability_score": 50,
-            "key_strengths": ["AI yanıtı alınamadı"],
-            "key_weaknesses": ["Lütfen tekrar dene"],
-            "summary": "Analiz üretilemedi.",
+            "recommendation": None,
+            "overall_score": None,
+            "primary_score": None,
+            "momentum_score": None,
+            "stability_score": None,
+            "key_strengths": [],
+            "key_weaknesses": [],
+            "summary": "AI yanıtı alınamadı, analiz üretilemedi. Birazdan tekrar dene.",
         }
 
     labels = _SCORE_LABELS[asset_class]
     scores = [
-        {"label": labels[0], "score": parsed.get("primary_score", 50)},
-        {"label": labels[1], "score": parsed.get("momentum_score", 50)},
-        {"label": labels[2], "score": parsed.get("stability_score", 50)},
+        {"label": labels[0], "score": parsed.get("primary_score")},
+        {"label": labels[1], "score": parsed.get("momentum_score")},
+        {"label": labels[2], "score": parsed.get("stability_score")},
     ]
     result = {
         "symbol": symbol,
         "asset_class": asset_class,
         "overview": ov,
         "analysis": {
-            "recommendation": parsed.get("recommendation", "TUT"),
-            "overall_score": parsed.get("overall_score", 50),
+            "recommendation": parsed.get("recommendation"),
+            "overall_score": parsed.get("overall_score"),
             "summary": parsed.get("summary", ""),
             "key_strengths": parsed.get("key_strengths", []),
             "key_weaknesses": parsed.get("key_weaknesses", []),
@@ -548,7 +558,8 @@ def _analyze_macro(symbol: str, asset_class: str, now: datetime) -> dict:
         "generated_at": now.isoformat(),
     }
     result = _json_safe(result)
-    _cache[symbol] = (result, now)
+    if llm_ok:  # hata sonucu cache'lenmez → sonraki istek yeniden dener
+        _cache[symbol] = (result, now)
     return result
 
 
@@ -587,23 +598,19 @@ def analyze(symbol: str, force_refresh: bool = False) -> dict:
             model=llm_service.MODEL_LITE,
         )
         parsed = json.loads(raw)
+        llm_ok = True
     except Exception as exc:
         logger.warning(f"Fundamental LLM hata ({symbol}): {exc}")
+        llm_ok = False
         parsed = {
-            "valuation": "Adil",
-            "valuation_score": 50,
-            "growth_quality": "Orta",
-            "growth_score": 50,
-            "financial_health": "Orta",
-            "health_score": 50,
-            "overall_score": 50,
-            "recommendation": "TUT",
-            "fair_value_estimate": fundamentals.get("current_price"),
-            "key_strengths": ["AI yanıtı alınamadı"],
-            "key_weaknesses": ["Lütfen tekrar dene"],
-            "competitive_position": "Veri yetersiz.",
-            "summary": "Temel analiz üretilemedi.",
+            "key_strengths": [],
+            "key_weaknesses": [],
+            "summary": "AI yanıtı alınamadı, temel analiz üretilemedi. Birazdan tekrar dene.",
         }
+
+    if not llm_ok or fundamentals.get("data_limited"):
+        for key in _STOCK_VERDICT_KEYS:
+            parsed[key] = None
 
     result = {
         "symbol": symbol,
@@ -613,7 +620,8 @@ def analyze(symbol: str, force_refresh: bool = False) -> dict:
         "generated_at": now.isoformat(),
     }
     result = _json_safe(result)
-    _cache[symbol] = (result, now)
+    if llm_ok:  # hata sonucu cache'lenmez → sonraki istek yeniden dener
+        _cache[symbol] = (result, now)
     return result
 
 
