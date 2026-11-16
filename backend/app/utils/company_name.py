@@ -17,7 +17,7 @@ _SUFFIX = re.compile(
     r"(?:,?\s+(?:"
     r"(?i:inc\.?|incorporated|corporation|corp\.?|co\.|ltd\.?|limited|plc|"
     r"l\.p\.|n\.v\.|s\.a\.|s\.p\.a\.|a\.s\.|a\.ş\.|t\.a\.s\.|anonim\s+[sş]irketi)"
-    r"|AS|AŞ|AG|SE|NV|SA))+\s*$"
+    r"|&\s+Co\.?|Co|AS|AŞ|AG|SE|NV|SA))+\s*$"
 )
 _THE_COMPANY = re.compile(r"^The\s+(.+?)\s+Company$")
 _TR_TRADE = re.compile(r"\s+(?:Sanayi\s+)?[vV]e\s+Tic(?:aret|\.)?$")
