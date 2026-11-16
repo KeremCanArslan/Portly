@@ -94,7 +94,9 @@ class _BenchmarkWidgetState extends State<BenchmarkWidget> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             IOSSheetHero(
-                value: sharpe.toStringAsFixed(2), color: col, verdict: verdict),
+                value: formatPct(sharpe, decimals: 2),
+                color: col,
+                verdict: verdict),
             const SizedBox(height: 24),
             IOSInfoBlock(
               icon: Icons.straighten,
@@ -240,7 +242,7 @@ class _BenchmarkWidgetState extends State<BenchmarkWidget> {
                               borderRadius: BorderRadius.circular(5),
                             ),
                             child: Text(
-                                'Sharpe ${portfolioSharpe.toStringAsFixed(2)}',
+                                'Sharpe ${formatPct(portfolioSharpe, decimals: 2)}',
                                 style: TextStyle(
                                   color: c.warmAccent,
                                   fontSize: 10,
