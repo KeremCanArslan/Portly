@@ -16,6 +16,11 @@ from sqlalchemy.orm import Session
 from app.services import portfolio_service
 
 
+def _tr1(v: float) -> str:
+    """Tek ondalık, Türkçe virgül: 8.4 → "8,4" (ekranda "etkin 8.4" yazıyordu)."""
+    return f"{v:.1f}".replace(".", ",")
+
+
 def _clamp(v: float, lo: float = 0.0, hi: float = 100.0) -> float:
     return max(lo, min(hi, v))
 
@@ -93,7 +98,7 @@ def compute_health(db: Session, user_id: int) -> dict:
     fp = foreign_share * 100
     dims = [
         {"key": "Çeşitlendirme", "score": round(s_div),
-         "detail": f"{n} pozisyon, etkin {eff_n:.1f}",
+         "detail": f"{n} pozisyon, etkin {_tr1(eff_n)}",
          "ideal": "Hedef: etkin 8+",
          "what": (
              "Riskini kaç farklı varlığa yaydığını ölçer. 'Etkin pozisyon', "
@@ -101,11 +106,11 @@ def compute_health(db: Session, user_id: int) -> dict:
              "tüm pozisyonların eşit ağırlıkta olması durumunda kaç tanesine "
              "denk geldiğini gösterir. Paran birkaç pozisyonda toplanmışsa bu "
              "sayı, gerçek pozisyon adedinden küçük çıkar (ör. 12 pozisyon ama "
-             "etkin 3.3). Yükseldikçe tek bir varlığın kötü günü portföyü daha "
+             "etkin 3,3). Yükseldikçe tek bir varlığın kötü günü portföyü daha "
              "az sarsar."),
          "reading": (
              f"{n} pozisyonun var ama ağırlıklar eşit olmadığı için portföy "
-             f"aslında ~{eff_n:.1f} eşit pozisyon gibi davranıyor."),
+             f"aslında ~{_tr1(eff_n)} eşit pozisyon gibi davranıyor."),
          "action": (
              "Büyük ağırlıkları kademeli kısıp pozisyonları daha dengeli "
              "dağıt; etkin sayıyı 8'e yaklaştırmayı hedefle."
@@ -128,13 +133,13 @@ def compute_health(db: Session, user_id: int) -> dict:
              if s_conc < 60 else
              "Sağlıklı — tek bir varlık portföye baskın değil, böyle koru.")},
         {"key": "Sektör dağılımı", "score": round(s_sector),
-         "detail": f"Etkin {eff_sec:.1f} sektör",
+         "detail": f"Etkin {_tr1(eff_sec)} sektör",
          "ideal": "Hedef: 4+ sektör",
          "what": (
              "Yatırımının kaç farklı sektöre yayıldığı. Tek sektöre yığılmak, "
              "o sektörü vuran bir gelişmede tüm portföyü birlikte düşürür."),
          "reading": (
-             f"Portföyün sektör bazında ~{eff_sec:.1f} eşit sektöre yayılmış."),
+             f"Portföyün sektör bazında ~{_tr1(eff_sec)} eşit sektöre yayılmış."),
          "action": (
              "Farklı sektörlerden (ör. teknoloji, sanayi, enerji, finans, "
              "sağlık) ekleyerek yayılımı artır."

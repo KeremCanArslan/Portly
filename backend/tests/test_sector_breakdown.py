@@ -50,6 +50,20 @@ def test_bist_map_covers_catalog(symbol, expected):
     assert portfolio_service._resolve_sector(symbol) == expected
 
 
+@pytest.mark.parametrize("symbol,name,expected", [
+    ("ZZQA", "Global X Uranium ETF", "Fon/ETF"),   # 16 Kas canlı: "Diğer"deydi
+    ("ZZQB", "Roundhill Memory ETF", "Fon/ETF"),
+    ("ZZQC", "Northern Trust", "Diğer"),   # "Trust" şirket olabilir → fon sayılmaz
+    ("ZZQD", None, "Diğer"),
+])
+def test_finnhub_profilsiz_etf_adindan_taninir(monkeypatch, symbol, name, expected):
+    monkeypatch.setattr("app.services.market_data_service._known_name",
+                        lambda symbol: name)
+    monkeypatch.setattr(
+        "app.services.fundamental_analysis_service.info_available", lambda: False)
+    assert portfolio_service._resolve_sector(symbol) == expected
+
+
 def test_bist_sector_map_covers_whole_catalog():
     """bist_catalog'daki her hissenin sektörü olmalı — katalogda adı olup
     sektörü olmayan sembol sessizce "Diğer"e düşerdi."""

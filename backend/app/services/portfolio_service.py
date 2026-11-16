@@ -7,6 +7,7 @@ from app.services.symbol_alias import canonical
 from app.services import fx_service
 import yfinance as yf
 import math
+import re
 
 
 # order_service'teki kapanmış-pozisyon eşiğiyle aynı (tek tanım).
@@ -482,6 +483,12 @@ def _resolve_sector(symbol: str) -> str:
     # ETF/fon: Finnhub profile2 sanayi vermez (şirket değil, sepet). Sepetin
     # kendi içinde zaten çok sektör var — "Diğer" yerine dürüst etiket.
     if _is_probably_fund(symbol, fh_seen):
+        return _sector_remember(symbol, "Fon/ETF")
+
+    # Finnhub profil döndürmeyen ETF'ler (16 Kas canlı: URA "Global X Uranium
+    # ETF" "Diğer"deydi). Ad ağ isteği atmadan bilinenden okunur.
+    from app.services import market_data_service as _mds
+    if re.search(r"\b(?:ETF|ETN|Fund)\b", _mds._known_name(symbol) or ""):
         return _sector_remember(symbol, "Fon/ETF")
 
     # yfinance .info — lokal fallback (Render'da BLOKLU, orada boş döner).
