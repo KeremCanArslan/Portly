@@ -1,0 +1,38 @@
+# Portly makro takvim: ForexFactory haftalık akışını 3 saatte bir çeker ve
+# takvim-verisi dalına (tek commit, üstüne yazılır) koyar. Neden: akış Render'ın
+# ortak çıkış IP'sine sürekli HTTP 429 veriyor (16 Kas 2026 ölçümü); backend
+# veriyi raw.githubusercontent.com üzerinden bu daldan okur.
+name: Makro takvim verisi
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: makro-takvim
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: ForexFactory haftalik akisini cek
+        run: |
+          set -euo pipefail
+          mkdir out
+          curl -sSf -m 30 --retry 2 --retry-delay 20 \
+            -A "Mozilla/5.0 (compatible; Portly/1.0)" \
+            -o out/ff_thisweek.json \
+            https://nfs.faireconomy.media/ff_calendar_thisweek.json
+          python3 -c "import json; d=json.load(open('out/ff_thisweek.json')); assert isinstance(d, list) and d, 'bos akis'; print(len(d), 'olay')"
+      - name: takvim-verisi dalina yaz
+        run: |
+          set -euo pipefail
+          cd out
+          git init -q -b takvim-verisi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ff_thisweek.json
+          git commit -q -m "ForexFactory haftalik akis $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -qf "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" takvim-verisi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
