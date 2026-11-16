@@ -17,29 +17,104 @@
 ---
 
 ## ⚡ AÇILIŞ — yeni session buradan başlar
-> Son güncelleme: **8 Eylül 2026, 12. tur sonu.**
+> Son güncelleme: **16 Kasım 2026, 14. tur (canlı tıklama turu + kod incelemesi → 4 düzeltme commit'i; makro takvim + şirket adları + ekran kontrolleri).**
 
-**Durum:** çalışma ağacı temiz, **11. ve 12. tur PUSH'LANDI** (9 commit:
-`4666a05` BIST sektör haritası · `de5e162` şifre değiştirme · `76376b6` fiziki
-altın · `86a8005` Android paket kimliği + PWA metni · `4d03e99` güvenlik
-sertleştirmesi · `f44011e` hesap silme + `users.created_at` · `37a0217`
-spark ile toplu kapanış · `db488d6` vekil çerezi (toplu fiyat 401'i) ·
-`3f91a58` fiziki altın ekran cilası).
-Testler: backend **802** · flutter **101** · `flutter analyze` temiz.
-Kaynak: 11. tur = ilk dış kullanıcının (Batuhan) 7 maddesi · 12. tur = Kerem'in
-*"arkadaşlarım kullanıyor, güvenliklerini sağlayalım"* isteği.
+**14. tur devamı (16 Kas gece, Kerem *"tamam çöz 4 hepsinde var bu sorun"*):**
+şirket adları ham unvanla görünüyordu ("Apple Inc.", "NVIDIA Corporation", "Kardemir
+Celik Sanayi AS") → `app/utils/company_name.clean` (unvan + BIST "ve Ticaret" + Türkçe
+karakter sözlüğü), adın girdiği her noktada + Redis'teki eski fiyat kaydında
+(main `7f23bc6` `f29d933` `f0d43a8`). URA "Diğer" → adında ETF/ETN/Fund geçen
+"Fon/ETF" (`4c2a324`; canlıda eski "Diğer" 1 sa cache, sonra düzelir — yerelde
+doğrulandı). Sağlık "etkin 8.4" → "8,4". Ön yüz (`2c6ba87` `f889901`): arama "Çeyrek
+Altın / Çeyrek Altın" tekrarı, haber rozeti "−0,50" iki satıra kırılıyordu (1fcec58
+yan etkisi), "Sharpe -4.50" → "−4,50", grafik imleç tarihi "2026-07-31" → "31 Tem
+2026", hacim "261.8M" → "261,8 Mn", detayda "lot" → "adet". Telefon boyutunda
+doğrulandı: izleme listesi adları, arama satırı, rozetler, fiziki altın detayı (grafik
+yerine metin, AI kartı yok), sektör grafiği, Hesabımı Sil (şifre istiyor, Vazgeç),
+Şifre Değiştir istemci uyarısı (yanlış mevcut şifre sunucu testinde). Kalan iki iş
+Kerem'de: **0a** (Render GitHub uygulaması) ve **0b** (cron-job.org görevi).
 
-**Canlıda 5 hesap var, 2'si gerçek dış kullanıcı** (Batuhan aktif, Yağmur bir
-kez girip dönmemiş). Kerem kararı: **hesaplar silinmeyecek, `umut@mail.com`'un
-`123456` şifresine şimdilik dokunulmayacak.**
+**14. tur (16 Kas):** Kerem: *"açıp test etsene bi"*, *"haberler vs doğru gözüküyor
+mu"*, *"teknik analiz temel analiz hepsine bak her şeye tıkla"*, bulgu listesine
+*"düzelt"*, *"7yi de düzelt"*, *"bi de biyerlerde gc=x çıkıyodu"*. **Veri:** Kerem
+*"tly battı"* → umut@mail.com'dan **TLY silindi** (TEFAS 17 Eyl'den beri 0; yedek
+oturum scratchpad'inde). Portföy 35 pozisyon. AI Koç'a 1 test sorusu gitti.
+**Düzeltmeler** (main `d19d2b8` `cdfac4d` `a6fad3a` `1fcec58`; `canli` = `8cef17b`,
+docs commit'i canli'ya çakıştığı için alınmadı): haber etiketi ("milyon dolar"≠USD/TRY,
+"Silver Lake"≠Gümüş), Google News açıklaması = başlık tekrarı (23/23) boşaltıldı,
+" - Kaynak" ekiyle çift haber · temel analiz veri yokken / LLM hatasında puan ve
+AL/SAT YOK ("Veri yetersiz"), hata cache'lenmez · teknik hedef yönle tutarlı +
+`risk_reward`, istemde "hedef ≥1 ATR, R:R<1,5 → NEUTRAL" · TEFAS fiyatı 10 günden
+eskiyse `price_stale`/`price_date` → satırda "Fiyat güncellenmiyor" · kesilmiş
+temettüye (ZOREN 2005, BA 2020) tarih uydurulmuyor (13 vs 18 hisse farkı buydu) ·
+kesirli adet (LMT 2,53 "3 adet"; satış sheet'i "Tümü"de eldekinden fazla yazıyordu) ·
+`upperTr` (PROFİL, TEKNİK) · ham sembol: uzun basma başlığı + AI istemi "GC=F",
+AI haber analizinde LLM'in "GC=X"i · ondalık virgül (davranış, stres, ya almış,
+göstergeler, grafik) · grafik köşe etiketi OHLC'ye biniyordu, tarih ekseni "16 Kas" ·
+DEU bayrağı, "Trade sekmesi" metni, "THY · THY", "Technology · Technology", giriş
+ekranı düğme etiketleri. Testler: backend tam yeşil, flutter **109**, analyze temiz.
+**Yayın:** autoDeploy İKİ serviste de çalışmıyor (15 dk sonra `/health` eski commit) →
+Kerem *"sen yapsana izin veriyorum"* → Claude Render'a GitHub ile girip iki servisi
+Manual Deploy etti (`8cef17b`, sonra `b1fc7c5`). Canlı doğrulamada çıkan ek
+düzeltmeler: AI istemlerine ham sembol yerine ad (Altın yorumu "GC=F varlığı" diye
+başlıyordu — Kerem'in gördüğü "gc=x" buydu), temettü "kesmiş" kuralı URA'yı da
+yakalıyordu (artık yalnız son 12 ayda hiç ödemeyen), stres "−%83,1". Telefon boyutunda
+doğrulananlar: kesirli adet, PROFİL/TEKNİK, uzun basma başlığı "Altın", grafik
+etiketi + "16 Kas" ekseni, AI Teknik "NÖTR · Hedef — · Stop —", davranış/stres
+virgülleri, temettü 13/12, Görevler metni, giriş ekranı etiketleri.
+**Makro takvim (Kerem *"sen yap işte"*, main `b1d0067` `d8e774f` `e6df8ef`, canli
+`9ef3bda` `b12b33a` `3a7d833`):** LLM uydurması söküldü → ForexFactory haftalık akışı
+(`nfs.faireconomy.media/ff_calendar_thisweek.json`; yalnız bu hafta, TRY yok) + TCMB
+resmî Takvim sayfası (`#midTable`; PPK 14:00). TÜİK takvimi makineyle okunmuyor →
+TÜFE tarihi yok. Trading Economics guest **kapalı** (410), Finnhub takvimi ücretli.
+⚠ **Render'dan ForexFactory kalıcı 429** (5 dk arayla 2/2; akış aynı IP'den 3. istekte
+429 + Retry-After 300, CORS yok) → devre kesici + son başarılı yanıt Redis'te 8 gün +
+**GitHub kopyası**: `KeremCanArslan/Portly` main'e `.github/workflows/makro-takvim.yml`
+(3 saatte bir → `takvim-verisi` dalı), backend önce
+`raw.githubusercontent.com/KeremCanArslan/Portly/takvim-verisi/ff_thisweek.json` okur.
+**Action yayında** (Kerem 16.11 00:0x web'den commit etti; Claude'un tarayıcı commit'i
+otomatik modda engelli, gh token'ında `workflow` izni yok). İlk elle koşu 00:09 UTC
+başarılı (119 olay); canlı backend force yenilemede kopyadan okudu (log'da 404/429 yok).
+**Canlı (3a7d833) doğrulandı:** yeniden
+kurulan örnek kaynağa doğrudan ulaştı (429 IP'ye göre değişiyor, kalıcı değil), son
+başarılı yanıt Redis'te; telefon boyutunda Haberler → "Bu Hafta Önemli Olaylar":
+6 gerçek olay, "17 Kas Sal · 16:30", "Beklenti %0,4 · Önceki %0,9", bayraklar,
+"Kaynak: ForexFactory · saatler TR saatiyle". Action, her yeni haftanın ilk çekiminin
+429'a takılmaması için güvence. İngilizce haberler çevrilmiyor (tasarım).
+
+**CANLI YAYIN ARTIK KEREM'İN RENDER'INDA (13 Eki'den beri):** site
+`https://portly-app.onrender.com` · API `https://portly-app-api.onrender.com`
+· repo `KeremCanArslan/Portly` dalı **`canli`** (= main + adres değişikliği).
+`origin` (umutaltan) main'e push canlıya GİTMEZ; değişiklik `canli`'ya
+cherry-pick edilip ayrıca push'lanır, ön yüz Render'da **Manual Deploy** ister.
+Aşağıdaki `portly-backend-5jii` / `portly-frontend` adresleri ESKİ (askıda).
+
+**13. tur (24 Eki):** Kerem: *"giriş çok geç açılıyor, haberler çalışmıyor"*.
+Ölçüm: yeni API **UptimeRobot'suz** → 15 dk boşta uyuyor (render.com/docs/free:
+kalkış ~1 dk); ısınınca giriş ~2 sn (bcrypt), haber Tümü 1,9 sn, Portföyüm
+36 sembol 18 sn / force 30 sn. Kod hatası: `fetchNews`/`fetchNewsForSymbols`
+hatada BOŞ LİSTE dönüyordu → uyanış sırasında açılan Haber sekmesi "Haber
+bulunamadı" deyip oturum boyunca bir daha denemiyordu. Düzeltme `7907632`
+(main) = `27ed07f` (canli'ya hazır): istisna fırlatılır + tekrar denenir,
+zaman aşımı 75/90 sn, açılışta `/health`'e tek uyandırma isteği. Testler:
+flutter **107** · backend yeşil · analyze temiz. **Push edilmedi** (otomatik
+mod canlı deploy'u engelledi → Kerem kendisi push'lar).
+
+**Canlıda gerçek dış kullanıcılar var** (Batuhan aktif). Kerem kararı:
+**hesaplar silinmeyecek, `umut@mail.com`'un `123456` şifresine şimdilik
+dokunulmayacak.** 12. tur sonu: 11.-12. tur push'lanmıştı (`3f91a58`'e kadar).
 
 **⚠️ COMMIT/PUSH SORMADAN** (Kerem kalıcı izin verdi) — koşul: iş bitmiş +
 testler yeşil. Push sonrası `/health`'ten commit'i ve değişen ucu doğrula.
+(24 Eki: Claude Code otomatik modu `canli` push'unu engelledi → Kerem push'lar
+ya da izin kuralı ekler.)
 
 **SIRA (üstten aşağı):**
 
 | # | İş | Kim | Not |
 |---|---|---|---|
+| 0a | ⏳ **Otomatik kurulum — kök sebep bulundu (16 Kas)** | Kerem | Render ayarı doğru (repo `KeremCanArslan / Portly`, dal `canli`, Auto-Deploy "On Commit", Build Filters boş) ama GitHub'da **Render uygulaması KURULU DEĞİL** (yalnız Claude + Vercel) → push bildirimi Render'a hiç gitmiyor. Çözüm: github.com/apps/render/installations/new → KeremCanArslan → Only select repositories → Portly → Install. Kurulana kadar yayın = canli push + iki serviste Manual Deploy (Claude yapabilir) |
+| 0b | ⏳ **Sunucuyu gündüz uyanık tut** | Kerem | cron-job.org'da Portly görevi YOK (yalnız Yolat). Kota rahat (16 Kas: 750 saatin 5,13'ü). Görev: başlık "Portly API uyanik tut (08-23)", URL `https://portly-app-api.onrender.com/health`, Custom crontab `*/10 8-22 * * *` (hesap saat dilimi Europe/Istanbul) → 08:00-22:50, ayda ~450-496 sa. Claude formu doldurdu ama CREATE tıklaması otomatik modda engellendi |
 | 1 | **Cihaz doğrulaması — 11.-12. tur** | Kerem | (a) Profil → Ayarlar → **Şifre Değiştir** (yanlış mevcut şifre → hata; doğru → yeni şifreyle giriş) · (b) pozisyon ekle → **"çeyrek"** ara → 5 adet, maliyet gir → portföyde **₺** değeri doğru mu (5 × ~11.100 ₺) · (c) sektör donut'unda küçük BIST hisseleri artık "Diğer" değil (BNTAS→Ambalaj) · (d) fiziki altın detayında grafik yerine gerekçe metni · (e) arama ipucu "çeyrek altın, katılım fonu" · (f) Profil altında **Hesabımı Sil** (şifre isteyen onay; SİLME, sadece ekranı gör) · (g) fiziki altın detayında **AI Teknik/Temel Analiz kartları ve zaman aralığı seçici GÖRÜNMEMELİ** |
 | 2 | ✅ **Cloudflare Worker güncelmiş** | ~~Kerem~~ | 12. turda ÖLÇÜLDÜ, deploy GEREKMİYOR: `/v8/finance/spark` ve `/v7/finance/quote` vekilden **200**, izin dışı yol (`/v10/quoteSummary`) **403 "Bu yol vekillenmiyor"** → izin listesi güncel. **Ama vekil yine de kullanılmıyordu** → `db488d6` (aşağıda) |
 | 3 | ✅ **spark ile toplu kapanış** | ~~Claude~~ | 12. turda YAPILDI (`37a0217`): 20'şerli gruplar, 51 sembol → 3 istek. Canlı ölçüm (deploy sonrası): benchmark 1y **1,56 sn soğuk / 0,21 sn sıcak**, signals **3,80 / 0,35**, health 0,86. **Kalan:** OHLCV (mum) yolu hâlâ sembol başına — sinyal motoru oradan besleniyor, spark mum vermiyor (yalnız kapanış) |
