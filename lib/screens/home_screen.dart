@@ -595,6 +595,11 @@ class _AddStockSheetBodyState extends State<_AddStockSheetBody> {
                             final symbol = s['symbol'] as String? ?? '';
                             final name = s['name'] as String? ?? symbol;
                             final market = s['market'] as String? ?? '';
+                            final title = SymbolDisplay.compact(symbol);
+                            // Fiziki altında ad = başlık ("Çeyrek Altın /
+                            // Çeyrek Altın" tekrarlanıyordu) → alt satır yok.
+                            final showName = name.trim().toLowerCase() !=
+                                title.toLowerCase();
                             return InkWell(
                               // Satıra dokun → izleme listesine EKLEMEDEN
                               // doğrudan grafiği/detayı aç.
@@ -642,7 +647,7 @@ class _AddStockSheetBodyState extends State<_AddStockSheetBody> {
                                             // "CEYREK.ALTIN" / "TLY.FON" yerine
                                             // "Çeyrek Altın" / "TLY". Uygulamanın
                                             // geri kalanı zaten compact() kullanıyor.
-                                            SymbolDisplay.compact(symbol),
+                                            title,
                                             style: TextStyle(
                                               color: c.textPrimary,
                                               fontSize: 14,
@@ -650,17 +655,19 @@ class _AddStockSheetBodyState extends State<_AddStockSheetBody> {
                                               letterSpacing: -0.1,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: c.textMuted,
-                                              fontSize: 12,
-                                              letterSpacing: -0.1,
+                                          if (showName) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: c.textMuted,
+                                                fontSize: 12,
+                                                letterSpacing: -0.1,
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ],
                                       ),
                                     ),

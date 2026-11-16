@@ -672,13 +672,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     // Markör alanını sabit genişlikte tut ki başlık sol kenarları hizalı kalsın.
     final Widget marker = hasSignal
         ? Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
             decoration: BoxDecoration(
               color: dataColor,
               borderRadius: BorderRadius.circular(5),
             ),
+            // "−0,50" (tipografik eksi daha geniş) 44 px'e sığmayıp iki
+            // satıra kırılıyordu → tek satır + biraz daha geniş markör alanı.
             child: Text(
               formatPct(score, decimals: 2),
+              maxLines: 1,
+              softWrap: false,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,
@@ -703,7 +707,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           children: [
             Container(
               margin: const EdgeInsets.only(top: 2),
-              width: 44,
+              width: 48,
               alignment: Alignment.centerLeft,
               child: marker,
             ),
