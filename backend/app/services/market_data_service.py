@@ -964,9 +964,11 @@ def get_stock_prices_named(symbols: list[str]) -> dict:
         quote = data.get(sym)
         if not quote:
             continue
+        # Fiyat kaydı company_name'iyle Redis'te duruyor → eski ham unvan
+        # ("Apple Inc.") süresi dolana kadar dönerdi; burada da temizlenir.
         quotes.append({**quote,
                        "company_name": _known_name(sym)
-                       or quote.get("company_name") or sym})
+                       or clean_name(quote.get("company_name"), sym) or sym})
     _schedule_name_resolution(syms)
     return {"quotes": quotes,
             "missing": [s for s in syms if s not in data]}
