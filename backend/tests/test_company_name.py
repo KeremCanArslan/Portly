@@ -26,6 +26,9 @@ from app.utils.company_name import clean
     ("Frontline plc", "FRO", "Frontline"),
     ("Mobilicom Limited", "MOB", "Mobilicom"),
     ("The Boeing Company", "BA", "Boeing"),
+    ("Boeing Co", "BA", "Boeing"),                      # Finnhub biçimi
+    ("JPMorgan Chase & Co.", "JPM", "JPMorgan Chase"),
+    ("Procter & Gamble Co", "PG", "Procter & Gamble"),
     ("RTX Corporation", "RTX", "RTX"),
     ("Ondas Inc.", "ONDS", "Ondas"),
     # ETF ve fon adları olduğu gibi kalır
