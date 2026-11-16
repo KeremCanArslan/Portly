@@ -2926,10 +2926,12 @@ class _ChartPainter extends CustomPainter {
         color: axisColor, fontSize: 8, align: TextAlign.right);
   }
 
+  /// Hacim kısaltması, Türkçe: 261.8e6 → "261,8 Mn" (eskiden "261.8M").
   String _fmtCompact(double v) {
-    if (v >= 1e9) return '${(v / 1e9).toStringAsFixed(1)}B';
-    if (v >= 1e6) return '${(v / 1e6).toStringAsFixed(1)}M';
-    if (v >= 1e3) return '${(v / 1e3).toStringAsFixed(1)}K';
+    String one(double x) => x.toStringAsFixed(1).replaceAll('.', ',');
+    if (v >= 1e9) return '${one(v / 1e9)} Mr';
+    if (v >= 1e6) return '${one(v / 1e6)} Mn';
+    if (v >= 1e3) return '${one(v / 1e3)} bin';
     return v.toStringAsFixed(0);
   }
 
@@ -2983,6 +2985,19 @@ class _ChartPainter extends CustomPainter {
     'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
     'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
   ];
+
+  /// İmleç tarihi: "2026-07-31" → "31 Tem 2026"; gün içi veride saat
+  /// korunur ("13 Kas 2026 15:30"). Eskiden ham ISO yazıyordu.
+  String _crossDate(String raw) {
+    if (raw.length < 10) return raw;
+    final y = int.tryParse(raw.substring(0, 4));
+    final m = int.tryParse(raw.substring(5, 7));
+    final d = int.tryParse(raw.substring(8, 10));
+    if (y == null || m == null || d == null || m < 1 || m > 12) return raw;
+    final day = '$d ${_trMonths[m - 1]} $y';
+    final t = RegExp(r'[T ](\d{2}:\d{2})').firstMatch(raw);
+    return t == null ? day : '$day ${t.group(1)}';
+  }
 
   /// "2026-11-16" → "16 Kas" (uzun aralıkta "Kas 26").
   String _axisDay(String iso, bool longSpan) {
@@ -3237,7 +3252,8 @@ class _ChartPainter extends CustomPainter {
       tp.paint(canvas, Offset(boxX + 4, hoverY - 7));
     }
 
-    final dateStr = (data[visibleStart + idx]['date'] as String?) ?? '';
+    final dateStr =
+        _crossDate((data[visibleStart + idx]['date'] as String?) ?? '');
     final dtp = TextPainter(
       text: TextSpan(
           text: dateStr,

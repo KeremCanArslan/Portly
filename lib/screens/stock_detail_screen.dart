@@ -386,7 +386,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           title: 'Pozisyon Ekle',
                           subtitle: SymbolDisplay.isPhysical(symbol)
                               ? 'Elindeki miktarı maliyetiyle portföyüne kaydet'
-                              : 'Sahip olduğun lotu maliyetiyle portföyüne kaydet',
+                              : 'Sahip olduğun adedi maliyetiyle portföyüne kaydet',
                           onTap: () => showManualPositionSheet(context,
                               preset: widget.stockData),
                         ),
@@ -811,7 +811,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Gerçekte sattığın lotu gir; pozisyonundan düşülür ve işlem '
+                'Gerçekte sattığın adedi gir; pozisyonundan düşülür ve işlem '
                 'geçmişine satış kaydı eklenir.',
                 style: TextStyle(
                   color: c.textMuted,
