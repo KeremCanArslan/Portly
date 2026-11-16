@@ -238,6 +238,21 @@ def test_batch_prices_uses_known_name_without_network(monkeypatch):
     assert res["quotes"][0]["company_name"] == "Türk Hava Yolları"
 
 
+def test_batch_prices_cleans_raw_name_in_cached_quote(monkeypatch):
+    """16 Kas: fiyat kaydı company_name'iyle cache'te durduğu için yayından
+    sonra da "Apple Inc." dönüyordu; yanıtta unvan atılır."""
+    monkeypatch.setattr(mds, "_fetch_many", lambda symbols: {
+        "AAPL": {"symbol": "AAPL", "company_name": "Apple Inc.",
+                 "current_price": 200.0, "change_percent": 1.0}})
+    monkeypatch.setattr(css, "get_quotes", lambda symbols: {})
+    monkeypatch.setattr(ycs, "get_quotes", lambda symbols: {})
+    monkeypatch.setattr(mds, "_schedule_name_resolution", lambda symbols: None)
+    monkeypatch.setattr(mds, "_known_name", lambda symbol: None)
+
+    res = mds.get_stock_prices_named(["AAPL"])
+    assert res["quotes"][0]["company_name"] == "Apple"
+
+
 # ── Negatif cache: alınamayan sembol her istekte yeniden denenmesin ──────────
 def test_unavailable_symbol_is_not_refetched_on_every_request(monkeypatch):
     """Canlı ölçüm: 429 sürerken /portfolio 4,2 sn, /performance 10,6 sn
