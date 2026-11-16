@@ -46,7 +46,7 @@ def test_fundamentals_field_mapping(monkeypatch):
     })
     f = fh.get_fundamentals("NVDA")
     assert f["data_source"] == "finnhub" and f["data_limited"] is False
-    assert f["company_name"] == "NVIDIA Corp"
+    assert f["company_name"] == "NVIDIA"        # "NVIDIA Corp" unvanı atılır
     assert f["market_cap"] == 3_200_000 * 1_000_000      # milyon → mutlak
     assert f["current_price"] == 204.65
     assert f["pe_trailing"] == 65.4

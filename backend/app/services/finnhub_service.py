@@ -17,6 +17,7 @@ import requests
 from loguru import logger
 
 from app.core.config import settings
+from app.utils.company_name import clean as clean_name
 
 _BASE = "https://finnhub.io/api/v1"
 _TIMEOUT = 8
@@ -133,7 +134,7 @@ def get_fundamentals(symbol: str) -> dict | None:
     return {
         "data_limited": False,
         "data_source": "finnhub",
-        "company_name": profile.get("name") or symbol,
+        "company_name": clean_name(profile.get("name"), symbol) or symbol,
         "sector": industry,
         "industry": industry,
         "country": profile.get("country"),
