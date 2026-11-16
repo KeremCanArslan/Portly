@@ -11,6 +11,7 @@ from loguru import logger
 
 from app.core import cache
 from app.services import fund_catalog, gold_catalog
+from app.utils.company_name import clean as clean_name
 
 # ── Cache semantiği ──────────────────────────────────────────────────────────
 # Stale-while-revalidate, paylaşılan cache (app.core.cache: Redis ya da
@@ -133,8 +134,9 @@ def _known_name(symbol: str) -> str | None:
         return name
     hit = _cache_get(_N + symbol)
     if hit and isinstance(hit[0], str) and hit[0] != symbol:
-        _name_cache[symbol] = hit[0]
-        return hit[0]
+        name = clean_name(hit[0], symbol)   # 16 Kas öncesi ham unvanla yazılmış olabilir
+        _name_cache[symbol] = name
+        return name
     cat = _catalog_name(symbol)
     if cat:
         _name_cache[symbol] = cat
@@ -164,7 +166,7 @@ def _resolve_name(symbol: str) -> str:
             name = info.get("longName") or info.get("shortName") or None
         except Exception:
             name = None
-    name = name or symbol
+    name = clean_name(name, symbol) or symbol
     _name_cache[symbol] = name
     if name != symbol:
         _cache_set(_N + symbol, name, _NAME_TTL_SECONDS)
@@ -311,7 +313,7 @@ def _quote_to_record(q: dict) -> tuple[str, dict] | None:
     # adı veriyor (GC=F → "Gold Dec 26"). Katalogta yoksa Yahoo'nun adı bedava
     # geldi → `.info` çağrısına gerek kalmaz (o uç Render'da bloklu, sembol
     # başına 0,6-3 sn yiyor).
-    name = _known_name(sym) or q.get("longName") or q.get("shortName")
+    name = _known_name(sym) or clean_name(q.get("longName") or q.get("shortName"), sym)
     if name and name != sym:
         _name_cache.setdefault(sym, name)
     return sym, {
@@ -1674,7 +1676,7 @@ def search_symbols(query: str, limit: int = 10):
 
             results.append({
                 "symbol": symbol,
-                "name": q.get("shortname") or q.get("longname") or symbol,
+                "name": clean_name(q.get("shortname") or q.get("longname"), symbol) or symbol,
                 "market": market,
                 "type": quote_type,
             })

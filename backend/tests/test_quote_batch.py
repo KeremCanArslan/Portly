@@ -68,7 +68,7 @@ class _FakeSession:
 def test_n_symbols_single_request(monkeypatch):
     syms = ["AAPL", "MSFT", "THYAO.IS", "BTC-USD"]
     session = _FakeSession({
-        s: _quote(s, 100.0, prev=99.0, change=1.0101, name=f"{s} A.Ş.")
+        s: _quote(s, 100.0, prev=99.0, change=1.0101, name=f"{s} Teknoloji A.Ş.")
         for s in syms
     })
     monkeypatch.setattr(mds, "_yf_session", lambda: session)
@@ -84,7 +84,7 @@ def test_n_symbols_single_request(monkeypatch):
     assert out["AAPL"]["current_price"] == 100.0
     assert out["AAPL"]["change_percent"] == 1.01
     assert out["AAPL"]["change_available"] is True
-    assert out["AAPL"]["company_name"] == "AAPL A.Ş."
+    assert out["AAPL"]["company_name"] == "AAPL Teknoloji"   # ad Yahoo'dan, unvan atılmış
 
 
 def test_chunks_at_50_symbols(monkeypatch):

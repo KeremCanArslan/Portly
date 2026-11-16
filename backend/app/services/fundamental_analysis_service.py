@@ -13,6 +13,7 @@ import yfinance as yf
 
 from app.core.yf_session import get_session
 from app.services import llm_service, finnhub_service
+from app.utils.company_name import clean as clean_name
 from app.utils.symbol_display import compact as display_symbol
 
 _cache: dict[str, tuple[dict, datetime]] = {}
@@ -183,7 +184,8 @@ def _compute_fundamentals(symbol: str) -> dict:
 
     return {
         "data_limited": data_limited,
-        "company_name": _safe(info.get("longName") or info.get("shortName"), symbol),
+        "company_name": clean_name(
+            _safe(info.get("longName") or info.get("shortName"), symbol), symbol),
         "sector": _safe(info.get("sector")),
         "industry": _safe(info.get("industry")),
         "country": _safe(info.get("country")),
@@ -411,7 +413,8 @@ def _overview(symbol: str, asset_class: str) -> dict:
 
     ccy = _safe(info.get("currency"), "USD")
     ov = {
-        "display_name": _safe(info.get("longName") or info.get("shortName"), symbol),
+        "display_name": clean_name(
+            _safe(info.get("longName") or info.get("shortName"), symbol), symbol),
         "currency": ccy,
         "currency_prefix": _ccy_prefix(ccy),
         "current_price": round(price, 4) if price is not None else None,
